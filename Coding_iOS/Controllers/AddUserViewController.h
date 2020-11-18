@@ -11,14 +11,18 @@
 #import "ProjectMember.h"
 
 typedef NS_ENUM(NSInteger, AddUserType) {
-    AddUserTypeProject = 0,
-    AddUserTypeFollow
+    AddUserTypeProjectRoot = 0,
+    AddUserTypeProjectFollows,//我的关注
+    AddUserTypeProjectFans,//我的粉丝
+    AddUserTypeProjectCompany,//企业成员
+    AddUserTypeFollow//添加好友
 };
 @interface AddUserViewController : BaseViewController<UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate>
 
 @property (assign, nonatomic) AddUserType type;
 @property (strong, nonatomic) Project *curProject;
 @property (copy, nonatomic) void(^popSelfBlock)();
-@property (strong, nonatomic) NSMutableArray *queryingArray, *addedArray, *searchedArray;
+@property (strong, nonatomic) NSMutableArray *queryingArray, *addedArray;
+@property (strong, nonatomic) NSArray *searchedArray;
 - (void)configAddedArrayWithMembers:(NSArray *)memberArray;
 @end

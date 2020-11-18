@@ -22,6 +22,8 @@
 #import "TweetDetailViewController.h"
 #import "CSTopicDetailVC.h"
 #import "WebViewController.h"
+#import "SVPullToRefresh.h"
+#import "ODRefreshControl.h"
 
 #define kCommentIndexNotFound -1
 
@@ -40,7 +42,7 @@
 @property (nonatomic, strong) User *commentToUser;
 
 @property (nonatomic, assign) NSInteger curIndex;
-
+@property (nonatomic, strong) ODRefreshControl *refreshControl;
 @end
 
 @implementation CSTopicDetailVC{
@@ -50,35 +52,42 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
+    _curIndex = 0;
     [self setupData];
     [self setupUI];
-    
-    _curIndex = 0;
-    
+    _refreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];
+    [_refreshControl addTarget:self action:@selector(refresh) forControlEvents:UIControlEventValueChanged];
+
     [self.myTableView reloadData];
-    [self refreshheader];
-    [self refreshTopTweet];
-    
-    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC);
-    dispatch_after(popTime, dispatch_get_main_queue(), ^{
-        [self sendRequest];
-    });
-    
+    __weak typeof(self) weakSelf = self;
+    [self.myTableView addInfiniteScrollingWithActionHandler:^{
+        [weakSelf sendRequestLoadMore:YES];
+    }];
+    [self refresh];
 }
 
-- (void)sendRequest{
+- (void)refresh{
+    [self refreshheader];
+    [self refreshTopTweet];
+    [self sendRequestLoadMore:NO];
+}
+
+- (void)sendRequestLoadMore:(BOOL)loadMore{
+    if (_curTweets.isLoading) {
+        return;
+    }
+    _curTweets.willLoadMore = loadMore;
+    _curTweets.isLoading = YES;
     __weak typeof(self) weakSelf = self;
-    
-    [[Coding_NetAPIManager sharedManager] request_PublicTweetsWithTopic:_topicID andBlock:^(NSArray *datalist, NSError *error) {
-        NSMutableArray *list = [NSMutableArray array];
-        [datalist enumerateObjectsUsingBlock:^(Tweet* obj, NSUInteger idx, BOOL *stop) {
-            if (self.curTopWteet && [self.curTopWteet.id isEqualToNumber:obj.id]) {
-                
-            }else{
-                [list addObject:obj];
-            }
-        }];
-        [weakSelf.curTweets configWithTweets:list];
+    NSNumber *last_id = nil;
+    if (_curTweets.willLoadMore && _curTweets.list.count > 0) {
+        last_id = [(Tweet *)_curTweets.list.lastObject id];
+    }
+    [[Coding_NetAPIManager sharedManager] request_PublicTweetsWithTopic:_topicID last_id:last_id andBlock:^(NSArray *datalist, NSError *error) {
+        [weakSelf.refreshControl endRefreshing];
+        [weakSelf.myTableView.infiniteScrollingView stopAnimating];
+        weakSelf.curTweets.isLoading = NO;
+        [weakSelf.curTweets configWithTweets:datalist];
         [weakSelf.myTableView reloadData];
     }];
 }
@@ -182,7 +191,7 @@
             
             if ([Login isLoginUserGlobalKey:weakSelf.commentToUser.global_key]) {
                 ESWeakSelf
-                UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"删除此评论" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+                UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"删除此评论" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
                     ESStrongSelf
                     if (index == 0 && _self.commentIndex >= 0) {
                         Comment *comment  = [_self.commentTweet.comment_list objectAtIndex:_self.commentIndex];
@@ -197,7 +206,7 @@
         }
         [_myMsgInputView notAndBecomeFirstResponder];
     };
-    cell.likeBtnClickedBlock = ^(Tweet *tweet){
+    cell.cellRefreshBlock = ^(){
         [weakSelf.myTableView reloadData];
     };
     cell.userBtnClickedBlock = ^(User *curUser){
@@ -221,7 +230,7 @@
         if ([self.myMsgInputView isAndResignFirstResponder]) {
             return ;
         }
-        UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"删除此冒泡" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"删除此冒泡" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [weakSelf deleteTweet:curTweet];
             }
@@ -297,9 +306,6 @@
     }
 }
 
-
-
-
 #pragma mark UIMessageInputViewDelegate
 - (void)messageInputView:(UIMessageInputView *)inputView sendText:(NSString *)text{
     [self sendCommentMessage:text];
@@ -308,7 +314,7 @@
 - (void)messageInputView:(UIMessageInputView *)inputView heightToBottomChenged:(CGFloat)heightToBottom{
     [UIView animateWithDuration:0.25 delay:0.0f options:UIViewAnimationOptionTransitionFlipFromBottom animations:^{
         UIEdgeInsets contentInsets= UIEdgeInsetsMake(0.0, 0.0, heightToBottom, 0.0);;
-        CGFloat msgInputY = kScreen_Height - heightToBottom - 64;
+        CGFloat msgInputY = kScreen_Height - heightToBottom - (44 + kSafeArea_Top);
         
         self.myTableView.contentInset = contentInsets;
         self.myTableView.scrollIndicatorInsets = contentInsets;
@@ -341,9 +347,12 @@
 }
 
 - (void)sendCurComment:(Tweet *)commentObj{
+    [NSObject showHUDQueryStr:@"正在发表评论..."];
     __weak typeof(self) weakSelf = self;
     [[Coding_NetAPIManager sharedManager] request_Tweet_DoComment_WithObj:commentObj andBlock:^(id data, NSError *error) {
+        [NSObject hideHUDQuery];
         if (data) {
+            [NSObject showHudTipStr:@"评论成功"];
             Comment *resultCommnet = (Comment *)data;
             resultCommnet.owner = [Login curLoginUser];
             [commentObj addNewComment:resultCommnet];
@@ -392,6 +401,9 @@
             make.edges.equalTo(self.view);
         }];
         _tableHeader = header;
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     
@@ -405,31 +417,17 @@
 }
 
 - (void)sendTweet{
-//    __weak typeof(self) weakSelf = self;
+    __weak typeof(self) weakSelf = self;
     TweetSendViewController *vc = [[TweetSendViewController alloc] init];
     vc.sendNextTweet = ^(Tweet *nextTweet){
-        [nextTweet saveSendData];//发送前保存草稿
         [[Coding_NetAPIManager sharedManager] request_Tweet_DoTweet_WithObj:nextTweet andBlock:^(id data, NSError *error) {
             if (data) {
                 [Tweet deleteSendData];//发送成功后删除草稿
-//                Tweets *curTweets = [weakSelf getCurTweets];
-//                if (curTweets.tweetType != TweetTypePublicHot) {
-//                    Tweet *resultTweet = (Tweet *)data;
-//                    resultTweet.owner = [Login curLoginUser];
-//                    if (curTweets.list && [curTweets.list count] > 0) {
-//                        [curTweets.list insertObject:data atIndex:0];
-//                    }else{
-//                        curTweets.list = [NSMutableArray arrayWithObject:resultTweet];
-//                    }
-//                    [self.myTableView reloadData];
-//                }
-//                [weakSelf.view configBlankPage:EaseBlankPageTypeTweet hasData:(curTweets.list.count > 0) hasError:(error != nil) reloadButtonBlock:^(id sender) {
-//                    [weakSelf sendRequest];
-//                }];
+                [weakSelf refresh];
+            }else{
+                [nextTweet saveSendData];//发送失败，保存草稿
             }
-            
         }];
-        
     };
     UINavigationController *nav = [[BaseNavigationController alloc] initWithRootViewController:vc];
     [self.parentViewController presentViewController:nav animated:YES completion:nil];
@@ -445,7 +443,7 @@
             [_self.myTableView reloadData];
             [_self.view configBlankPage:([[Login curLoginUser] isSameToUser:_self.curTweets.curUser]? EaseBlankPageTypeTweet: EaseBlankPageTypeTweetOther)  hasData:(_self.curTweets.list.count > 0) hasError:NO reloadButtonBlock:^(id sender) {
                 ESStrongSelf;
-                [_self sendRequest];
+                [_self refresh];
             }];
         }
     }];
@@ -463,7 +461,7 @@
     self.textLabel.backgroundColor = [UIColor clearColor];
     self.textLabel.frame = CGRectMake(30, 0, 100, 36);
     self.textLabel.font = [UIFont systemFontOfSize:12];
-    self.textLabel.textColor = [UIColor colorWithHexString:@"0x666666"];
+    self.textLabel.textColor = kColor666;
     self.textLabel.text = @"置顶话题";
 }
 

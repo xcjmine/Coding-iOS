@@ -68,12 +68,6 @@
     MyTask_RootViewController *mytask = [[MyTask_RootViewController alloc] init];
     UINavigationController *nav_mytask = [[BaseNavigationController alloc] initWithRootViewController:mytask];
     
-    RKSwipeBetweenViewControllers *nav_tweet = [RKSwipeBetweenViewControllers newSwipeBetweenViewControllers];
-    [nav_tweet.viewControllerArray addObjectsFromArray:@[[Tweet_RootViewController newTweetVCWithType:Tweet_RootViewControllerTypeAll],
-                                                         [Tweet_RootViewController newTweetVCWithType:Tweet_RootViewControllerTypeFriend],
-                                                         [Tweet_RootViewController newTweetVCWithType:Tweet_RootViewControllerTypeHot]]];
-    nav_tweet.buttonText = @[@"冒泡广场", @"朋友圈", @"热门冒泡"];
-    
     Message_RootViewController *message = [[Message_RootViewController alloc] init];
     RAC(message, rdv_tabBarItem.badgeValue) = [RACSignal combineLatest:@[RACObserve([UnReadManager shareManager], messages),
                                                                       RACObserve([UnReadManager shareManager], notifications)]
@@ -92,34 +86,50 @@
     UINavigationController *nav_message = [[BaseNavigationController alloc] initWithRootViewController:message];
     
     Me_RootViewController *me = [[Me_RootViewController alloc] init];
-    me.isRoot = YES;
     UINavigationController *nav_me = [[BaseNavigationController alloc] initWithRootViewController:me];
     
-    [self setViewControllers:@[nav_project, nav_mytask, nav_tweet, nav_message, nav_me]];
+    if (kTarget_Enterprise) {
+        [self setViewControllers:@[nav_project, nav_mytask, nav_message, nav_me]];
+    }else{
+        RKSwipeBetweenViewControllers *nav_tweet = [RKSwipeBetweenViewControllers newSwipeBetweenViewControllers];
+        [nav_tweet.viewControllerArray addObjectsFromArray:@[[Tweet_RootViewController newTweetVCWithType:Tweet_RootViewControllerTypeAll],
+                                                             [Tweet_RootViewController newTweetVCWithType:Tweet_RootViewControllerTypeFriend],
+                                                             [Tweet_RootViewController newTweetVCWithType:Tweet_RootViewControllerTypeHot]]];
+        nav_tweet.buttonText = @[@"冒泡广场", @"朋友圈", @"热门冒泡"];
+        
+        [self setViewControllers:@[nav_project, nav_mytask, nav_tweet, nav_message, nav_me]];
+    }
     
     [self customizeTabBarForController];
     self.delegate = self;
 }
 
 - (void)customizeTabBarForController {
-
-    
-    UIImage *backgroundImage = [UIImage imageNamed:@"tabbar_background"];
-    NSArray *tabBarItemImages = @[@"project", @"task", @"tweet", @"privatemessage", @"me"];
-    NSArray *tabBarItemTitles = @[@"项目", @"任务", @"冒泡", @"消息", @"我"];
-    
+    NSArray *tabBarItemImages;
+    NSArray *tabBarItemTitles;
+    if (kTarget_Enterprise) {
+        tabBarItemImages = @[@"project", @"task", @"privatemessage", @"me"];
+        tabBarItemTitles = @[@"项目", @"任务", @"消息", @"我的"];
+    }else{
+        tabBarItemImages = @[@"project", @"task", @"tweet", @"privatemessage", @"me"];
+        tabBarItemTitles = @[@"项目", @"任务", @"冒泡", @"消息", @"我"];
+    }
     NSInteger index = 0;
     for (RDVTabBarItem *item in [[self tabBar] items]) {
         item.titlePositionAdjustment = UIOffsetMake(0, 3);
-        [item setBackgroundSelectedImage:backgroundImage withUnselectedImage:backgroundImage];
         UIImage *selectedimage = [UIImage imageNamed:[NSString stringWithFormat:@"%@_selected",
                                                       [tabBarItemImages objectAtIndex:index]]];
         UIImage *unselectedimage = [UIImage imageNamed:[NSString stringWithFormat:@"%@_normal",
                                                         [tabBarItemImages objectAtIndex:index]]];
         [item setFinishedSelectedImage:selectedimage withFinishedUnselectedImage:unselectedimage];
         [item setTitle:[tabBarItemTitles objectAtIndex:index]];
+        item.badgePositionAdjustment = UIOffsetMake(0, kSafeArea_Bottom / 2);
         index++;
     }
+    [self.tabBar setHeight:49 + kSafeArea_Bottom];
+    [self.tabBar setContentEdgeInsets:UIEdgeInsetsMake(kSafeArea_Bottom / 2, 0, 0, 0)];
+    self.tabBar.backgroundView.backgroundColor = kColorNavBG;
+    [self.tabBar addLineUp:YES andDown:NO andColor:kColorCCC];
 }
 
 #pragma mark RDVTabBarControllerDelegate

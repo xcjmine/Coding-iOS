@@ -18,11 +18,17 @@
 #import "PointShopCell.h"
 #import "PointRecordCell.h"
 
+#import "AboutPointViewController.h"
+
 @interface PointRecordsViewController ()<UITableViewDataSource, UITableViewDelegate>
 @property (strong, nonatomic) PointRecords *curRecords;
 
 @property (nonatomic, strong) UITableView *myTableView;
 @property (nonatomic, strong) ODRefreshControl *refreshControl;
+@property (assign, nonatomic) BOOL isShowingTip;
+@property (strong, nonatomic) UIView *tipContainerV;
+@property (strong, nonatomic) UIImageView *tipBGV;
+@property (strong, nonatomic) UILabel *tipL;
 @end
 
 @implementation PointRecordsViewController
@@ -46,10 +52,16 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _refreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];
     [_refreshControl addTarget:self action:@selector(refresh) forControlEvents:UIControlEventValueChanged];
+    
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"tip_normal_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(rightNavBtnClicked)];
+    self.isShowingTip = NO;
     
     __weak typeof(self) weakSelf = self;
     [_myTableView addInfiniteScrollingWithActionHandler:^{
@@ -75,7 +87,7 @@
 }
 
 - (void)sendRequest{
-    if (_curRecords.list.count <= 0) {
+    if (_curRecords.list.count <= 0 && !_curRecords.points_left) {
         [self.view beginLoading];
     }
     __weak typeof(self) weakSelf = self;
@@ -88,7 +100,7 @@
             [weakSelf.myTableView reloadData];
             weakSelf.myTableView.showsInfiniteScrolling = weakSelf.curRecords.canLoadMore;
         }
-        [weakSelf.view configBlankPage:EaseBlankPageTypeView hasData:(weakSelf.curRecords.list.count > 0) hasError:(error != nil) reloadButtonBlock:^(id sender) {
+        [weakSelf.view configBlankPage:EaseBlankPageTypeView hasData:(weakSelf.curRecords.list.count > 0 || weakSelf.curRecords.points_left) hasError:(error != nil) reloadButtonBlock:^(id sender) {
             [weakSelf refresh];
         }];
     }];
@@ -96,7 +108,7 @@
 
 #pragma mark Table M
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
-    return _curRecords.list.count <= 0? 0:2;
+    return _curRecords.list.count <= 0? 1:2;
 }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
     return section == 0? 2: self.curRecords.list.count;
@@ -105,9 +117,8 @@
     
     if (indexPath.section == 0) {
         if (indexPath.row == 0) {
-            PointRecord *record = [_curRecords.list firstObject];
             PointTopCell *cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_PointTopCell forIndexPath:indexPath];
-            cell.pointLeftStr = [NSString stringWithFormat:@"%.2f", record.points_left.floatValue];
+            cell.pointLeftStr = _curRecords.points_left? [NSString stringWithFormat:@"%.2f", _curRecords.points_left.floatValue]: @"--";
             [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:0 hasSectionLine:NO];
             return cell;
         }else{
@@ -152,15 +163,17 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    if (indexPath.section == 0 && indexPath.row == 1) {
-        //商城入口
-//        WebViewController *vc = [WebViewController webVCWithUrlStr:@"/shop/"];
-//        [self.navigationController pushViewController:vc animated:YES];
-        
-        ShopViewController *shopvc = [[ShopViewController alloc] init];
-        [self.navigationController pushViewController:shopvc animated:YES];
+//    if (indexPath.section == 0 && indexPath.row == 1) {
+//        //商城入口
+//        ShopViewController *shopvc = [[ShopViewController alloc] init];
+//        [self.navigationController pushViewController:shopvc animated:YES];
+//    }
+}
 
-    }
+#pragma mark rightNavBtn
+- (void)rightNavBtnClicked{
+    AboutPointViewController *vc = [AboutPointViewController new];
+    [self.navigationController pushViewController:vc animated:YES];
 }
 
 @end

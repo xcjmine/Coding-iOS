@@ -6,7 +6,7 @@
 //  Copyright (c) 2014年 Coding. All rights reserved.
 //
 
-#define kValueListCell_ImageWidth 21.0
+#define kValueListCell_ImageWidth 22.0
 #define kValueListCell_CheckMarkWidth 22.0
 #define kValueListCell_LeftPading 20.0
 
@@ -27,10 +27,11 @@
         if (!_titleLabel) {
             _titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(kValueListCell_LeftPading, 7, (kScreen_Width - 120), 30)];
             _titleLabel.backgroundColor = [UIColor clearColor];
-            _titleLabel.font = [UIFont systemFontOfSize:16];
-            _titleLabel.textColor = [UIColor blackColor];
+            _titleLabel.font = [UIFont systemFontOfSize:15];
+            _titleLabel.textColor = kColorDark2;
             [self.contentView addSubview:_titleLabel];
         }
+        self.clipsToBounds = YES;
     }
     return self;
 }

@@ -40,18 +40,20 @@
 
 #pragma mark BackBtn M
 - (UIBarButtonItem *)backButton{
-    NSDictionary*textAttributes;
+//    NSDictionary*textAttributes;
+//    if ([[UIBarButtonItem appearance] respondsToSelector:@selector(setTitleTextAttributes:forState:)]){
+//        textAttributes = @{
+//                           NSFontAttributeName: [UIFont systemFontOfSize:kBackButtonFontSize],
+//                           NSForegroundColorAttributeName: kColorLightBlue,
+//                           };
+//        
+//        [[UIBarButtonItem appearance] setTitleTextAttributes:textAttributes forState:UIControlStateNormal];
+//        
+//        [[UIBarButtonItem appearance] setTitleTextAttributes:@{NSFontAttributeName: [UIFont systemFontOfSize:kBackButtonFontSize]} forState:UIControlStateDisabled | UIControlStateHighlighted];
+//    }
     UIBarButtonItem *temporaryBarButtonItem = [[UIBarButtonItem alloc] init];
-    temporaryBarButtonItem.title = @"返回";
+    temporaryBarButtonItem.title = @"";
     temporaryBarButtonItem.target = self;
-    if ([temporaryBarButtonItem respondsToSelector:@selector(setTitleTextAttributes:forState:)]){
-        textAttributes = @{
-                           NSFontAttributeName: [UIFont boldSystemFontOfSize:kBackButtonFontSize],
-                           NSForegroundColorAttributeName: [UIColor whiteColor],
-                           };
-        
-        [[UIBarButtonItem appearance] setTitleTextAttributes:textAttributes forState:UIControlStateNormal];
-    }
     temporaryBarButtonItem.action = @selector(goBack_Swizzle);
     return temporaryBarButtonItem;
 }

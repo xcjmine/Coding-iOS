@@ -55,6 +55,9 @@
             make.edges.equalTo(self.view);
         }];
         tableView.allowsMultipleSelectionDuringEditing = YES;
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     
@@ -129,9 +132,9 @@
 #pragma mark Edit Table
 - (NSArray *)rightButtonsWithObj:(NSIndexPath *)indexPath{
     NSMutableArray *rightUtilityButtons = [NSMutableArray new];
-    [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xe6e6e6"] icon:[UIImage imageNamed:@"icon_file_cell_rename"]];
+    [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xF2F4F6"] icon:[UIImage imageNamed:@"icon_file_cell_rename"]];
     if (indexPath.row != 0) {//当前版本不能删除
-        [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xff5846"] icon:[UIImage imageNamed:@"icon_file_cell_delete"]];
+        [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xF66262"] icon:[UIImage imageNamed:@"icon_file_cell_delete"]];
     }
     return rightUtilityButtons;
 }
@@ -184,12 +187,12 @@
 - (void)deleteFileVersion:(FileVersion *)curVersion{
     __weak typeof(self) weakSelf = self;
     
-    NSURL *fileUrl = [Coding_FileManager diskDownloadUrlForKey:curVersion.storage_key];
+    NSURL *fileUrl = curVersion.diskFileUrl;
     Coding_DownloadTask *cDownloadTask = [Coding_FileManager cDownloadTaskForKey:curVersion.storage_key];
-    UIActionSheet *actionSheet;
+    UIAlertController *actionSheet;
     
     if (fileUrl) {
-        actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"只是删除本地文件还是连同服务器版本一起删除？" buttonTitles:@[@"仅删除本地文件"] destructiveTitle:@"一起删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"只是删除本地文件还是连同服务器版本一起删除？" buttonTitles:@[@"仅删除本地文件"] destructiveTitle:@"一起删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             switch (index) {
                 case 0:
                     [weakSelf doDeleteFileVersion:curVersion fromDisk:YES];
@@ -202,7 +205,7 @@
             }
         }];
     }else if (cDownloadTask){
-        actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"确定将服务器上的该版本删除？" buttonTitles:@[@"只是取消下载"] destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"确定将服务器上的该版本删除？" buttonTitles:@[@"只是取消下载"] destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             switch (index) {
                 case 0:
                     [weakSelf doDeleteFileVersion:curVersion fromDisk:YES];
@@ -215,7 +218,7 @@
             }
         }];
     }else{
-        actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"确定将服务器上的该版本删除？" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"确定将服务器上的该版本删除？" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [weakSelf doDeleteFileVersion:curVersion fromDisk:NO];
             }
@@ -231,7 +234,7 @@
         [Coding_FileManager cancelCDownloadTaskForKey:curVersion.storage_key];
     }
     //    删除本地文件
-    NSURL *fileUrl = [Coding_FileManager diskDownloadUrlForKey:curVersion.storage_key];
+    NSURL *fileUrl = curVersion.diskFileUrl;
     NSString *filePath = fileUrl.path;
     NSFileManager *fm = [NSFileManager defaultManager];
     if ([fm fileExistsAtPath:filePath]) {

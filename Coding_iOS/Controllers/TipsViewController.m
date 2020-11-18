@@ -52,6 +52,7 @@
             titleStr = @"系统通知";
             break;
         default:
+            titleStr = @"通知";
             break;
     }
     self.title = titleStr;
@@ -69,6 +70,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _refreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];
@@ -172,22 +176,22 @@
     if ([KxMenu isShowingInView:self.view]) {
         [KxMenu dismissMenu:YES];
     }else{
-        [KxMenu setTitleFont:[UIFont systemFontOfSize:14]];
+        [KxMenu setTitleFont:[UIFont systemFontOfSize:15]];
         [KxMenu setTintColor:[UIColor whiteColor]];
-        [KxMenu setLineColor:[UIColor colorWithHexString:@"0xdddddd"]];
+        [KxMenu setLineColor:kColorDDD];
         NSArray *menuItems = @[
                                [KxMenuItem menuItem:_myCodingTips.onlyUnread? @"查看全部": @"查看未读" image:[UIImage imageNamed:@"tips_menu_icon_status"] target:self action:@selector(p_changeTipStatus)],
                                [KxMenuItem menuItem:@"全部标注已读" image:[UIImage imageNamed:@"tips_menu_icon_mkread"] target:self action:@selector(p_markReadAll)],
                                ];
-        [menuItems setValue:[UIColor colorWithHexString:@"0x222222"] forKey:@"foreColor"];
-        CGRect senderFrame = CGRectMake(kScreen_Width - (kDevice_Is_iPhone6Plus? 30: 26), 0, 0, 0);
+        [menuItems setValue:kColorDark4 forKey:@"foreColor"];
+        CGRect senderFrame = CGRectMake(kScreen_Width - (kDevice_Is_iPhone6Plus? 30: 26), 5, 0, 0);
         [KxMenu showMenuInView:self.view
                       fromRect:senderFrame
                      menuItems:menuItems];
     }
     
 //    @weakify(self);
-//    [[UIActionSheet bk_actionSheetCustomWithTitle:@"将本页的未读通知全部标记为已读？" buttonTitles:@[@"全部标为已读"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+//    [[UIAlertController ea_actionSheetCustomWithTitle:@"将本页的未读通知全部标记为已读？" buttonTitles:@[@"全部标为已读"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
 //        if (index == 0) {
 //            @strongify(self);
 //            [self p_markReadAll];
@@ -224,7 +228,12 @@
     NSString *linkStr = item.href;
     UIViewController *vc = [BaseViewController analyseVCFromLinkStr:linkStr];
     if (vc) {
-        [self.navigationController pushViewController:vc animated:YES];
+        if ([vc isKindOfClass:NSClassFromString(@"TeamViewController")] &&
+            ![Login curLoginUser].isAdministrator.boolValue) {
+            [NSObject showHudTipStr:@"无权访问企业账户"];
+        }else{
+            [self.navigationController pushViewController:vc animated:YES];
+        }
     }else{
         //网页
         WebViewController *webVc = [WebViewController webVCWithUrlStr:linkStr];

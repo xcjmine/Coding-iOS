@@ -39,7 +39,7 @@
     curTweet.callback = callback;
     curTweet.tweetContent = content;
     if (image) {
-        curTweet.tweetImages = @[[TweetImage tweetImageWithAssetURL:nil andImage:image]].mutableCopy;
+        curTweet.tweetImages = @[[TweetImage tweetImageWithAssetLocalIdentifier:nil andImage:image]].mutableCopy;
     }
     TweetSendViewController *vc = [TweetSendViewController new];
     vc.curTweet = curTweet;
@@ -81,7 +81,7 @@
     //    添加myTableView
     _myTableView = ({
         TPKeyboardAvoidingTableView *tableView = [[TPKeyboardAvoidingTableView alloc] initWithFrame:self.view.bounds style:UITableViewStylePlain];
-        tableView.backgroundColor = [UIColor clearColor];
+        tableView.backgroundColor = [UIColor whiteColor];
         tableView.dataSource = self;
         tableView.delegate = self;
         tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
@@ -91,6 +91,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
 }
@@ -152,7 +155,7 @@
             [self showActionForPhoto];
         };
         cell.deleteTweetImageBlock = ^(TweetImage *toDelete){
-            [weakSelf.curTweet deleteATweetImage:toDelete];
+            [weakSelf.curTweet deleteTweetImage:toDelete];
             [weakSelf.myTableView reloadData];
         };
         return cell;
@@ -177,13 +180,13 @@
 
 - (void)showActionForPhoto{
     @weakify(self);
-    [[UIActionSheet bk_actionSheetCustomWithTitle:nil buttonTitles:@[@"拍照", @"从相册选择"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+    [[UIAlertController ea_actionSheetCustomWithTitle:nil buttonTitles:@[@"拍照", @"从相册选择"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
         @strongify(self);
-        [self photoActionSheet:sheet DismissWithButtonIndex:index];
+        [self photoActionSheetDismissWithButtonIndex:index];
     }] showInView:self.view];
 }
 
-- (void)photoActionSheet:(UIActionSheet *)sheet DismissWithButtonIndex:(NSInteger)buttonIndex{
+- (void)photoActionSheetDismissWithButtonIndex:(NSInteger)buttonIndex{
     if (buttonIndex == 0) {
         //        拍照
         if (![Helper checkCameraAuthorizationStatus]) {
@@ -203,24 +206,33 @@
             return;
         }
         QBImagePickerController *imagePickerController = [[QBImagePickerController alloc] init];
-        [imagePickerController.selectedAssetURLs removeAllObjects];
-        [imagePickerController.selectedAssetURLs addObjectsFromArray:self.curTweet.selectedAssetURLs];
-        imagePickerController.filterType = QBImagePickerControllerFilterTypePhotos;
+        [imagePickerController.selectedAssets removeAllObjects];
+        PHFetchResult *fetchResult = [PHAsset fetchAssetsWithLocalIdentifiers:self.curTweet.selectedAssetLocalIdentifiers options:nil];
+        [fetchResult enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            [imagePickerController.selectedAssets addObject:obj];
+        }];
+        imagePickerController.mediaType = QBImagePickerMediaTypeImage;
         imagePickerController.delegate = self;
         imagePickerController.allowsMultipleSelection = YES;
-        imagePickerController.maximumNumberOfSelection = 9;
-        UINavigationController *navigationController = [[BaseNavigationController alloc] initWithRootViewController:imagePickerController];
-        [self presentViewController:navigationController animated:YES completion:NULL];
+        imagePickerController.maximumNumberOfSelection = 6;
+        [self presentViewController:imagePickerController animated:YES completion:NULL];
+
     }
 }
 
 #pragma mark UIImagePickerControllerDelegate
 - (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info{
     UIImage *pickerImage = [info objectForKey:UIImagePickerControllerOriginalImage];
-    ALAssetsLibrary *assetsLibrary = [[ALAssetsLibrary alloc] init];
-    [assetsLibrary writeImageToSavedPhotosAlbum:[pickerImage CGImage] orientation:(ALAssetOrientation)pickerImage.imageOrientation completionBlock:^(NSURL *assetURL, NSError *error) {
-        [self.curTweet addASelectedAssetURL:assetURL];
-        [self.myTableView reloadRowsAtIndexPaths:[NSArray arrayWithObject:[NSIndexPath indexPathForRow:1 inSection:0]] withRowAnimation:UITableViewRowAnimationFade];
+    PHPhotoLibrary *photoLibrary = [PHPhotoLibrary sharedPhotoLibrary];
+    __block NSString *localId;
+    [photoLibrary performChanges:^{
+        PHAssetChangeRequest *assetChangeRequest = [PHAssetChangeRequest creationRequestForAssetFromImage:pickerImage];
+        localId = assetChangeRequest.placeholderForCreatedAsset.localIdentifier;
+    } completionHandler:^(BOOL success, NSError * _Nullable error) {
+        if (success) {
+            [self.curTweet addSelectedAssetLocalIdentifier:localId];
+            [self.myTableView reloadRowsAtIndexPaths:[NSArray arrayWithObject:[NSIndexPath indexPathForRow:1 inSection:0]] withRowAnimation:UITableViewRowAnimationFade];
+        }
     }];
     [picker dismissViewControllerAnimated:YES completion:^{}];
 }
@@ -230,14 +242,15 @@
 }
 
 #pragma mark QBImagePickerControllerDelegate
-- (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didSelectAssets:(NSArray *)assets{
-    NSMutableArray *selectedAssetURLs = [NSMutableArray new];
-    [imagePickerController.selectedAssetURLs enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-        [selectedAssetURLs addObject:obj];
+
+- (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didFinishPickingAssets:(NSArray *)assets{
+    NSMutableArray *selectedAssetLocalIdentifiers = [NSMutableArray new];
+    [imagePickerController.selectedAssets enumerateObjectsUsingBlock:^(PHAsset *obj, NSUInteger idx, BOOL *stop) {
+        [selectedAssetLocalIdentifiers addObject:obj.localIdentifier];
     }];
     @weakify(self);
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        self.curTweet.selectedAssetURLs = selectedAssetURLs;
+        self.curTweet.selectedAssetLocalIdentifiers = selectedAssetLocalIdentifiers;
         dispatch_async(dispatch_get_main_queue(), ^{
             @strongify(self);
             [self.myTableView reloadRowsAtIndexPaths:[NSArray arrayWithObject:[NSIndexPath indexPathForRow:1 inSection:0]] withRowAnimation:UITableViewRowAnimationFade];
@@ -258,7 +271,7 @@
         [self dismissSelfWithCompletion:nil];
     }else{
         __weak typeof(self) weakSelf = self;
-        [[UIActionSheet bk_actionSheetCustomWithTitle:@"是否保存草稿" buttonTitles:@[@"保存"] destructiveTitle:@"不保存" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        [[UIAlertController ea_actionSheetCustomWithTitle:@"是否保存草稿" buttonTitles:@[@"保存"] destructiveTitle:@"不保存" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [weakSelf.curTweet saveSendData];
             }else if (index == 1){
@@ -283,15 +296,12 @@
 - (void)handleCallBack:(NSString *)callback status:(BOOL)handleStatus{
     NSString *schemeStr = [NSString stringWithFormat:@"%@://coding.net?type=%@&handle_result=%@", callback, @"handle_result", handleStatus? @(1): @(0)];
     if (handleStatus) {//弹出提示给用户选择
-        UIAlertView *alertV = [UIAlertView bk_alertViewWithTitle:@"已发送" message:@"是否需要返回原来应用？"];
-        [alertV bk_setCancelButtonWithTitle:@"返回原应用" handler:nil];
-        [alertV bk_addButtonWithTitle:@"留在 Coding" handler:nil];
-        alertV.bk_didDismissBlock = ^(UIAlertView *alertView, NSInteger buttonIndex){
-            if (buttonIndex == 0) {//
+        [[UIAlertController ea_alertViewWithTitle:@"已发送" message:@"是否需要返回原来应用？" buttonTitles:@[@"留在 CODING"] destructiveTitle:nil cancelTitle:@"返回原应用" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
+            if (index == 1) {//
                 [[UIApplication sharedApplication] openURL:[NSURL URLWithString:schemeStr]];
             }
-        };
-        [alertV show];
+        }] show];
+
     }else{//直接返回
         [[UIApplication sharedApplication] openURL:[NSURL URLWithString:schemeStr]];
         [self dismissSelfWithCompletion:nil];
@@ -309,6 +319,12 @@
 }
 
 - (void)sendTweet{
+    for (TweetImage *tImg in _curTweet.tweetImages) {
+        if (tImg.downloadState == TweetImageDownloadStateIng) {
+            [NSObject showHudTipStr:@"iCloud 图片尚未下载完毕"];
+            return;
+        }
+    }
     _curTweet.tweetContent = [_curTweet.tweetContent aliasedString];
     if (_sendNextTweet) {
         _sendNextTweet(_curTweet);

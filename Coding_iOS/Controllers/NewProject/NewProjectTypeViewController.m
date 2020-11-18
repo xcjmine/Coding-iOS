@@ -22,13 +22,9 @@
     
     self.tableView.tableFooterView = [UIView new];
     [self.tableView setSeparatorColor:[UIColor colorWithRGBHex:0xe5e5e5]];
-    
+    self.tableView.backgroundColor = kColorTableSectionBg;
+
     // 添加右上角按钮
-//    UIButton *submitButton = [UIButton buttonWithType:UIButtonTypeInfoLight];
-//    [submitButton addTarget:self action:@selector(showHelpView) forControlEvents:UIControlEventTouchUpInside];
-//    UIBarButtonItem *submitButtonItem = [[UIBarButtonItem alloc] initWithCustomView:submitButton];
-//    self.navigationItem.rightBarButtonItem = submitButtonItem;
-    
     [self.navigationItem setRightBarButtonItem:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"info_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(showHelpView)] animated:NO];
 
 }
@@ -163,7 +159,7 @@
 
 #pragma mark - Orientations
 - (BOOL)shouldAutorotate{
-    return UIInterfaceOrientationIsLandscape(self.interfaceOrientation);
+    return UIInterfaceOrientationIsLandscape(UIApplication.sharedApplication.statusBarOrientation);
 }
 
 - (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {

@@ -13,6 +13,7 @@
 @property (strong, nonatomic) UILabel *userNameLabel;
 @property (strong, nonatomic) UIButton *rightBtn;
 @property (strong, nonatomic) UIActivityIndicatorView *sendingStatus;
+@property (strong, nonatomic) UIImageView *vipV;
 
 @end
 
@@ -23,22 +24,28 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
-        self.backgroundColor = [UIColor clearColor];
         if (!_userIconView) {
-            _userIconView = [[UIImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, ([UserCell cellHeight]-40)/2, 40, 40)];
+            _userIconView = [[YLImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, ([UserCell cellHeight]-40)/2, 40, 40)];
             [_userIconView doCircleFrame];
             [self.contentView addSubview:_userIconView];
         }
         if (!_userNameLabel) {
             _userNameLabel = [[UITTTAttributedLabel alloc] initWithFrame:CGRectMake(66, ([UserCell cellHeight]-30)/2, kScreen_Width - 66 - 100, 30)];
             _userNameLabel.font = [UIFont systemFontOfSize:17];
-            _userNameLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _userNameLabel.textColor = kColor222;
             [self.contentView addSubview:_userNameLabel];
         }
         if (!_rightBtn) {
             _rightBtn = [[UIButton alloc] initWithFrame:CGRectMake(kScreen_Width - 80-kPaddingLeftWidth, ([UserCell cellHeight]-30)/2, 80, 32)];
             [_rightBtn addTarget:self action:@selector(rightBtnClicked:) forControlEvents:UIControlEventTouchUpInside];
             [self.contentView addSubview:_rightBtn];
+        }
+        if (!_vipV) {
+            _vipV = [UIImageView new];
+            [self.contentView addSubview:_vipV];
+            [_vipV mas_makeConstraints:^(MASConstraintMaker *make) {
+                make.right.bottom.equalTo(_userIconView);
+            }];
         }
     }
     return self;
@@ -50,12 +57,15 @@
     if (!_curUser) {
         [_userIconView setImage:[UIImage imageNamed:@"add_user_icon"]];
         _userNameLabel.text = @"添加好友";
+        _vipV.image = nil;
     }else{
         [_userIconView sd_setImageWithURL:[_curUser.avatar urlImageWithCodePathResizeToView:_userIconView] placeholderImage:kPlaceholderMonkeyRoundView(_userIconView)];
+        _vipV.image = [UIImage imageNamed:[NSString stringWithFormat:@"vip_%@_40", _curUser.vip]];
         _userNameLabel.text = _curUser.name;
     }
+    _vipV.hidden = kTarget_Enterprise;
     
-    if (_usersType == UsersTypeFriends_Message || _usersType == UsersTypeFriends_At || _usersType == UsersTypeFriends_Transpond) {
+    if (_usersType == UsersTypeFriends_Message || _usersType == UsersTypeFriends_At || _usersType == UsersTypeFriends_Transpond || _usersType == UsersType_CompanyMember) {
         _rightBtn.hidden = YES;
     }else if (_usersType == UsersTypeAddToProject){
         NSString *imageName = _isInProject? @"btn_project_added":@"btn_project_add";

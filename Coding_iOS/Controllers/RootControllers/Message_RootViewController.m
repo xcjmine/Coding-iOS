@@ -6,6 +6,8 @@
 //  Copyright (c) 2014年 Coding. All rights reserved.
 //
 
+#define kTopItemNum 1
+
 #import "Message_RootViewController.h"
 #import "ODRefreshControl.h"
 #import "Coding_NetAPIManager.h"
@@ -24,7 +26,7 @@
 @property (nonatomic, strong) UITableView *myTableView;
 @property (nonatomic, strong) ODRefreshControl *refreshControl;
 @property (strong, nonatomic) PrivateMessages *myPriMsgs;
-@property (strong, nonatomic) NSMutableDictionary *notificationDict;
+//@property (strong, nonatomic) NSMutableDictionary *notificationDict;
 @end
 
 @implementation Message_RootViewController
@@ -76,6 +78,9 @@
             tableView.contentInset = insets;
             tableView.scrollIndicatorInsets = insets;
         }
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _refreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];
@@ -112,18 +117,21 @@
 
 - (void)sendMsgBtnClicked:(id)sender{
     UsersViewController *vc = [[UsersViewController alloc] init];
-    vc.curUsers = [Users usersWithOwner:[Login curLoginUser] Type:UsersTypeFriends_Message];
+    vc.curUsers = [Users usersWithOwner:[Login curLoginUser] Type:kTarget_Enterprise? UsersType_CompanyMember: UsersTypeFriends_Message];
     [self.navigationController pushViewController:vc animated:YES];
 }
 
 - (void)refresh{
-    __weak typeof(self) weakSelf = self;
-    [[Coding_NetAPIManager sharedManager] request_UnReadNotificationsWithBlock:^(id data, NSError *error) {
-        if (data) {
-            weakSelf.notificationDict = [NSMutableDictionary dictionaryWithDictionary:data];
-            [weakSelf.myTableView reloadData];
-        }
-    }];
+//    __weak typeof(self) weakSelf = self;
+//    [[Coding_NetAPIManager sharedManager] request_UnReadNotificationsWithBlock:^(id data, NSError *error) {
+//        if (data) {
+//            weakSelf.notificationDict = [NSMutableDictionary dictionaryWithDictionary:data];
+//            [weakSelf.myTableView reloadData];
+//            [weakSelf.myTableView configBlankPage:EaseBlankPageTypeMessageList hasData:(weakSelf.myPriMsgs.list.count > 0) hasError:(error != nil) offsetY:(kTopItemNum * [ToMessageCell cellHeight]) reloadButtonBlock:^(id sender) {
+//                [weakSelf refresh];
+//            }];
+//        }
+//    }];
     [[UnReadManager shareManager] updateUnRead];
     
     if (_myPriMsgs.isLoading) {
@@ -150,13 +158,16 @@
             [weakSelf.myPriMsgs configWithObj:data];
             [weakSelf.myTableView reloadData];
             weakSelf.myTableView.showsInfiniteScrolling = weakSelf.myPriMsgs.canLoadMore;
+            [weakSelf.myTableView configBlankPage:EaseBlankPageTypeMessageList hasData:(weakSelf.myPriMsgs.list.count > 0) hasError:(error != nil) offsetY:(kTopItemNum * [ToMessageCell cellHeight]) reloadButtonBlock:^(id sender) {
+                [weakSelf refresh];
+            }];
         }
     }];
 }
 
 #pragma mark Table M
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
-    NSInteger row = 3;
+    NSInteger row = kTopItemNum;
     if (_myPriMsgs.list) {
         row += [_myPriMsgs.list count];
     }
@@ -164,36 +175,38 @@
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
-    if (indexPath.row < 3) {
+    if (indexPath.row < kTopItemNum) {
         ToMessageCell *cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_ToMessage forIndexPath:indexPath];
-        switch (indexPath.row) {
-            case 0:
-                cell.type = ToMessageTypeAT;
-                cell.unreadCount = [_notificationDict objectForKey:kUnReadKey_notification_AT];
-                break;
-            case 1:
-                cell.type = ToMessageTypeComment;
-                cell.unreadCount = [_notificationDict objectForKey:kUnReadKey_notification_Comment];
-                break;
-            default:
-                cell.type = ToMessageTypeSystemNotification;
-                cell.unreadCount = [_notificationDict objectForKey:kUnReadKey_notification_System];
-                break;
-        }
-        [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:75];
+        cell.type = ToMessageTypeAllNotification;
+        cell.unreadCount = [UnReadManager shareManager].notifications;
+//        switch (indexPath.row) {
+//            case 0:
+//                cell.type = ToMessageTypeAT;
+//                cell.unreadCount = [_notificationDict objectForKey:kUnReadKey_notification_AT];
+//                break;
+//            case 1:
+//                cell.type = ToMessageTypeComment;
+//                cell.unreadCount = [_notificationDict objectForKey:kUnReadKey_notification_Comment];
+//                break;
+//            default:
+//                cell.type = ToMessageTypeSystemNotification;
+//                cell.unreadCount = [_notificationDict objectForKey:kUnReadKey_notification_System];
+//                break;
+//        }
+        [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:75 hasSectionLine:NO];
         return cell;
     }else{
         ConversationCell *cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_Conversation forIndexPath:indexPath];
-        PrivateMessage *msg = [_myPriMsgs.list objectAtIndex:indexPath.row-3];
+        PrivateMessage *msg = [_myPriMsgs.list objectAtIndex:indexPath.row-kTopItemNum];
         cell.curPriMsg = msg;
-        [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:75];
+        [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:75 hasSectionLine:NO];
         return cell;
     }
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
     CGFloat cellHeight;
-    if (indexPath.row < 3) {
+    if (indexPath.row < kTopItemNum) {
         cellHeight = [ToMessageCell cellHeight];
     }else{
         cellHeight = [ConversationCell cellHeight];
@@ -203,12 +216,13 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    if (indexPath.row < 3) {
+    if (indexPath.row < kTopItemNum) {
         TipsViewController *vc = [[TipsViewController alloc] init];
-        vc.myCodingTips = [CodingTips codingTipsWithType:indexPath.row];
+//        vc.myCodingTips = [CodingTips codingTipsWithType:indexPath.row];
+        vc.myCodingTips = [CodingTips codingTipsWithType:ToMessageTypeAllNotification];
         [self.navigationController pushViewController:vc animated:YES];
     }else{
-        PrivateMessage *curMsg = [_myPriMsgs.list objectAtIndex:indexPath.row-3];
+        PrivateMessage *curMsg = [_myPriMsgs.list objectAtIndex:indexPath.row-kTopItemNum];
         ConversationViewController *vc = [[ConversationViewController alloc] init];
         User *curFriend = curMsg.friend;
         
@@ -222,14 +236,14 @@
     return @"删除会话";
 }
 - (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath{
-    return (indexPath.row >= 3);
+    return (indexPath.row >= kTopItemNum);
 }
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath{
     [tableView setEditing:NO animated:YES];
-    PrivateMessage *msg = [_myPriMsgs.list objectAtIndex:indexPath.row-3];
+    PrivateMessage *msg = [_myPriMsgs.list objectAtIndex:indexPath.row-kTopItemNum];
     
     __weak typeof(self) weakSelf = self;
-    UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:[NSString stringWithFormat:@"这将删除你和 %@ 的所有私信", msg.friend.name] buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+    UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:[NSString stringWithFormat:@"这将删除你和 %@ 的所有私信", msg.friend.name] buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
         if (index == 0) {
             [weakSelf removeConversation:msg inTableView:tableView];
         }
@@ -244,6 +258,9 @@
         if (data) {
             [weakSelf.myPriMsgs.list removeObject:data];
             [weakSelf.myTableView reloadData];
+            [weakSelf.myTableView configBlankPage:EaseBlankPageTypeMessageList hasData:(weakSelf.myPriMsgs.list.count > 0) hasError:(error != nil) offsetY:(kTopItemNum * [ToMessageCell cellHeight]) reloadButtonBlock:^(id sender) {
+                [weakSelf refresh];
+            }];
         }
     }];
 }

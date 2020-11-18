@@ -11,6 +11,8 @@
 #define kTagBadgePointView  1001
 #define kTagLineView 1007
 #import <objc/runtime.h>
+#import "YLImageView.h"
+#import "YLGIFImage.h"
 
 #import "Login.h"
 #import "User.h"
@@ -40,7 +42,7 @@ static char LoadingViewKey, BlankPageViewKey;
     self.layer.masksToBounds = YES;
     self.layer.cornerRadius = self.frame.size.width/2;
     self.layer.borderWidth = 0.5;
-    self.layer.borderColor = [UIColor colorWithHexString:@"0xdddddd"].CGColor;
+    self.layer.borderColor = kColorDDD.CGColor;
 }
 - (void)doNotCircleFrame{
     self.layer.cornerRadius = 0.0;
@@ -52,7 +54,7 @@ static char LoadingViewKey, BlankPageViewKey;
     self.layer.cornerRadius = cornerRadius;
     self.layer.borderWidth = width;
     if (!color) {
-        self.layer.borderColor = [UIColor colorWithHexString:@"0xdddddd"].CGColor;
+        self.layer.borderColor = kColorDDD.CGColor;
     }else{
         self.layer.borderColor = color.CGColor;
     }
@@ -105,7 +107,7 @@ static char LoadingViewKey, BlankPageViewKey;
     UIView *badgeView = [[UIView alloc]init];
     badgeView.tag = kTagBadgePointView;
     badgeView.layer.cornerRadius = pointRadius;
-    badgeView.backgroundColor = [UIColor colorWithHexString:@"0xf75388"];
+    badgeView.backgroundColor = [UIColor colorWithHexString:@"0xFF0000"];
     badgeView.frame = CGRectMake(0, 0, 2 * pointRadius, 2 * pointRadius);
     badgeView.center = point;
     [self addSubview:badgeView];
@@ -204,7 +206,7 @@ static char LoadingViewKey, BlankPageViewKey;
 - (void)setSubScrollsToTop:(BOOL)scrollsToTop{
     [[self subviews] enumerateObjectsUsingBlock:^(UIView *obj, NSUInteger idx, BOOL *stop) {
         if ([obj isKindOfClass:[UIScrollView class]]) {
-            [(UIScrollView *)obj setScrollEnabled:scrollsToTop];
+            [(UIScrollView *)obj setScrollsToTop:scrollsToTop];
             *stop = YES;
         }
     }];
@@ -258,7 +260,7 @@ static char LoadingViewKey, BlankPageViewKey;
 }
 
 + (UIView *)lineViewWithPointYY:(CGFloat)pointY{
-    return [self lineViewWithPointYY:pointY andColor:[UIColor colorWithHexString:@"0xc8c7cc"]];
+    return [self lineViewWithPointYY:pointY andColor:kColorDDD];
 }
 
 + (UIView *)lineViewWithPointYY:(CGFloat)pointY andColor:(UIColor *)color{
@@ -292,21 +294,10 @@ static char LoadingViewKey, BlankPageViewKey;
 }
 
 - (void)addLineUp:(BOOL)hasUp andDown:(BOOL)hasDown{
-    [self addLineUp:hasUp andDown:hasDown andColor:[UIColor colorWithHexString:@"0xc8c7cc"]];
+    [self addLineUp:hasUp andDown:hasDown andColor:kColorDDD];
 }
 
 - (void)addLineUp:(BOOL)hasUp andDown:(BOOL)hasDown andColor:(UIColor *)color{
-    [self removeViewWithTag:kTagLineView];
-    if (hasUp) {
-        UIView *upView = [UIView lineViewWithPointYY:0 andColor:color];
-        upView.tag = kTagLineView;
-        [self addSubview:upView];
-    }
-    if (hasDown) {
-        UIView *downView = [UIView lineViewWithPointYY:CGRectGetMaxY(self.bounds)-0.5 andColor:color];
-        downView.tag = kTagLineView;
-        [self addSubview:downView];
-    }
     return [self addLineUp:hasUp andDown:hasDown andColor:color andLeftSpace:0];
 }
 - (void)addLineUp:(BOOL)hasUp andDown:(BOOL)hasDown andColor:(UIColor *)color andLeftSpace:(CGFloat)leftSpace{
@@ -355,10 +346,14 @@ static char LoadingViewKey, BlankPageViewKey;
 }
 
 - (void)beginLoading{
-    for (UIView *aView in [self.blankPageContainer subviews]) {
-        if ([aView isKindOfClass:[EaseBlankPageView class]] && !aView.hidden) {
-            return;
-        }
+//    这里处理有点迷啊。。为啥有空白页就不 loading 了
+//    for (UIView *aView in [self.blankPageContainer subviews]) {
+//        if ([aView isKindOfClass:[EaseBlankPageView class]] && !aView.hidden) {
+//            return;
+//        }
+//    }
+    if (self.blankPageView) {
+        self.blankPageView.hidden = YES;
     }
     
     if (!self.loadingView) { //初始化LoadingView
@@ -366,7 +361,8 @@ static char LoadingViewKey, BlankPageViewKey;
     }
     [self addSubview:self.loadingView];
     [self.loadingView mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.self.edges.equalTo(self);
+        make.height.width.centerX.centerY.equalTo(self);
+//        make.self.edges.equalTo(self);//self 是 scrollView 的时候，貌似会跟 contentSize 扯上关系
     }];
     [self.loadingView startAnimating];
 }
@@ -391,6 +387,10 @@ static char LoadingViewKey, BlankPageViewKey;
 }
 
 - (void)configBlankPage:(EaseBlankPageType)blankPageType hasData:(BOOL)hasData hasError:(BOOL)hasError reloadButtonBlock:(void (^)(id))block{
+    [self configBlankPage:blankPageType hasData:hasData hasError:hasError offsetY:0 reloadButtonBlock:block];
+}
+
+- (void)configBlankPage:(EaseBlankPageType)blankPageType hasData:(BOOL)hasData hasError:(BOOL)hasError offsetY:(CGFloat)offsetY reloadButtonBlock:(void(^)(id sender))block{
     if (hasData) {
         if (self.blankPageView) {
             self.blankPageView.hidden = YES;
@@ -401,14 +401,8 @@ static char LoadingViewKey, BlankPageViewKey;
             self.blankPageView = [[EaseBlankPageView alloc] initWithFrame:self.bounds];
         }
         self.blankPageView.hidden = NO;
-        [self.blankPageContainer addSubview:self.blankPageView];
-
-//        [self.blankPageContainer insertSubview:self.blankPageView atIndex:0];
-//        [self.blankPageView mas_makeConstraints:^(MASConstraintMaker *make) {
-//            make.size.equalTo(self);
-//            make.top.left.equalTo(self.blankPageContainer);
-//        }];
-        [self.blankPageView configWithType:blankPageType hasData:hasData hasError:hasError reloadButtonBlock:block];
+        [self.blankPageContainer insertSubview:self.blankPageView atIndex:0];
+        [self.blankPageView configWithType:blankPageType hasData:hasData hasError:hasError offsetY:offsetY reloadButtonBlock:block];
     }
 }
 
@@ -436,23 +430,32 @@ static char LoadingViewKey, BlankPageViewKey;
     self = [super initWithFrame:frame];
     if (self) {
         self.backgroundColor = [UIColor clearColor];
-        _loopView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"loading_loop"]];
-        _monkeyView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"loading_monkey"]];
-        [_loopView setCenter:self.center];
-        [_monkeyView setCenter:self.center];
-        [self addSubview:_loopView];
+        _monkeyView = [YLImageView new];
+        _monkeyView.image = [YLGIFImage imageNamed:@"loading_monkey@2x.gif"];
         [self addSubview:_monkeyView];
-        [_loopView mas_makeConstraints:^(MASConstraintMaker *make) {
-            make.center.equalTo(self);
-        }];
         [_monkeyView mas_makeConstraints:^(MASConstraintMaker *make) {
-            make.center.equalTo(self);
+            make.centerX.equalTo(self);
+            make.centerY.equalTo(self).offset(-30);
+            make.size.mas_equalTo(CGSizeMake(100, 100));
         }];
-        
-        _loopAngle = 0.0;
-        _monkeyAlpha = 1.0;
-        _angleStep = 360/3;
-        _alphaStep = 1.0/3.0;
+
+//        _loopView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"loading_loop"]];
+//        _monkeyView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"loading_monkey"]];
+//        [_loopView setCenter:self.center];
+//        [_monkeyView setCenter:self.center];
+//        [self addSubview:_loopView];
+//        [self addSubview:_monkeyView];
+//        [_loopView mas_makeConstraints:^(MASConstraintMaker *make) {
+//            make.center.equalTo(self);
+//        }];
+//        [_monkeyView mas_makeConstraints:^(MASConstraintMaker *make) {
+//            make.center.equalTo(self);
+//        }];
+//        
+//        _loopAngle = 0.0;
+//        _monkeyAlpha = 1.0;
+//        _angleStep = 360/3;
+//        _alphaStep = 1.0/3.0;
     }
     return self;
 }
@@ -463,7 +466,7 @@ static char LoadingViewKey, BlankPageViewKey;
         return;
     }
     _isLoading = YES;
-    [self loadingAnimation];
+//    [self loadingAnimation];
 }
 
 - (void)stopAnimating{
@@ -489,7 +492,7 @@ static char LoadingViewKey, BlankPageViewKey;
             [self removeFromSuperview];
 
             _loopAngle = 0.0;
-            _monkeyAlpha = 1,0;
+            _monkeyAlpha = 1.0;
             _alphaStep = ABS(_alphaStep);
             CGAffineTransform loopAngleTransform = CGAffineTransformMakeRotation(_loopAngle * (M_PI / 180.0f));
             _loopView.transform = loopAngleTransform;
@@ -504,13 +507,15 @@ static char LoadingViewKey, BlankPageViewKey;
 - (instancetype)initWithFrame:(CGRect)frame{
     self = [super initWithFrame:frame];
     if (self) {
-        self.backgroundColor = [UIColor clearColor];
+        self.backgroundColor = [UIColor whiteColor];
     }
     return self;
 }
 
-- (void)configWithType:(EaseBlankPageType)blankPageType hasData:(BOOL)hasData hasError:(BOOL)hasError reloadButtonBlock:(void (^)(id))block{
-    
+- (void)configWithType:(EaseBlankPageType)blankPageType hasData:(BOOL)hasData hasError:(BOOL)hasError offsetY:(CGFloat)offsetY reloadButtonBlock:(void (^)(id))block{
+    _curType = blankPageType;
+    _reloadButtonBlock = block;
+
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         if (_loadAndShowStatusBlock) {
             _loadAndShowStatusBlock();
@@ -526,261 +531,317 @@ static char LoadingViewKey, BlankPageViewKey;
     //    图片
     if (!_monkeyView) {
         _monkeyView = [[UIImageView alloc] initWithFrame:CGRectZero];
+        _monkeyView.contentMode = UIViewContentModeScaleAspectFill;
         [self addSubview:_monkeyView];
+    }
+    //    标题
+    if (!_titleLabel) {
+        _titleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+        _titleLabel.backgroundColor = [UIColor clearColor];
+        _titleLabel.numberOfLines = 0;
+        _titleLabel.font = [UIFont systemFontOfSize:15];
+        _titleLabel.textColor = [UIColor colorWithHexString:@"0x425063"];
+        _titleLabel.textAlignment = NSTextAlignmentCenter;
+        [self addSubview:_titleLabel];
     }
     //    文字
     if (!_tipLabel) {
         _tipLabel = [[UILabel alloc] initWithFrame:CGRectZero];
         _tipLabel.backgroundColor = [UIColor clearColor];
         _tipLabel.numberOfLines = 0;
-        _tipLabel.font = [UIFont systemFontOfSize:15];
-        _tipLabel.textColor = [UIColor lightGrayColor];
+        _tipLabel.font = [UIFont systemFontOfSize:14];
+        _tipLabel.textColor = [UIColor colorWithHexString:@"0x76808E"];
         _tipLabel.textAlignment = NSTextAlignmentCenter;
         [self addSubview:_tipLabel];
     }
-    
-    //    布局
-    [_monkeyView mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.centerX.equalTo(self);
-        make.bottom.equalTo(self.mas_centerY);
-    }];
-    [_tipLabel mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.left.right.centerX.equalTo(self);
-        make.top.equalTo(_monkeyView.mas_bottom);
-        make.height.mas_equalTo(50);
-    }];
-    
-    _reloadButtonBlock = nil;
+    //    按钮
+    if (!_actionButton) {//新增按钮
+        _actionButton = ({
+            UIButton *button = [UIButton new];
+            button.backgroundColor = [UIColor colorWithHexString:@"0x425063"];
+            button.titleLabel.font = [UIFont systemFontOfSize:15];
+            [button addTarget:self action:@selector(btnAction) forControlEvents:UIControlEventTouchUpInside];
+            button.layer.cornerRadius = 4;
+            button.layer.masksToBounds = YES;
+            button;
+        });
+        [self addSubview:_actionButton];
+    }
+    if (!_reloadButton) {//重新加载按钮
+        _reloadButton = ({
+            UIButton *button = [UIButton new];
+            button.backgroundColor = [UIColor colorWithHexString:@"0x425063"];
+            button.titleLabel.font = [UIFont systemFontOfSize:15];
+            [button addTarget:self action:@selector(reloadButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
+            button.layer.cornerRadius = 4;
+            button.layer.masksToBounds = YES;
+            button;
+        });
+        [self addSubview:_reloadButton];
+    }
+    NSString *imageName, *titleStr, *tipStr;
+    NSString *buttonTitle;
     if (hasError) {
         //        加载失败
-        if (!_reloadButton) {
-            _reloadButton = [[UIButton alloc] initWithFrame:CGRectZero];
-            [_reloadButton setImage:[UIImage imageNamed:@"blankpage_button_reload"] forState:UIControlStateNormal];
-            _reloadButton.adjustsImageWhenHighlighted = YES;
-            [_reloadButton addTarget:self action:@selector(reloadButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
-            [self addSubview:_reloadButton];
-            [_reloadButton mas_makeConstraints:^(MASConstraintMaker *make) {
-                make.centerX.equalTo(self);
-                make.top.equalTo(_tipLabel.mas_bottom);
-                make.size.mas_equalTo(CGSizeMake(160, 60));
-            }];
-        }
-        _reloadButton.hidden = NO;
-        _reloadButtonBlock = block;
-        [_monkeyView setImage:[UIImage imageNamed:@"blankpage_image_loadFail"]];
-        _tipLabel.text = @"貌似出了点差错\n真忧伤呢";
+        _actionButton.hidden = YES;
+
+        tipStr = @"呀，网络出了问题";
+        imageName = @"blankpage_image_LoadFail";
+        buttonTitle = @"重新连接网络";
     }else{
         //        空白数据
-        if (_reloadButton) {
-            _reloadButton.hidden = YES;
-        }
+        _reloadButton.hidden = YES;
         
-        NSString *imageName, *tipStr;
-        _curType=blankPageType;
-        switch (blankPageType) {
+        switch (_curType) {
+            case EaseBlankPageTypeTaskResource: {
+                tipStr = @"暂无关联资源";
+            }
+                break;
             case EaseBlankPageTypeActivity://项目动态
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"这里还什么都没有\n赶快起来弄出一点动静吧";
+                imageName = @"blankpage_image_Activity";
+                tipStr = @"当前项目暂无相关动态";
             }
                 break;
             case EaseBlankPageTypeTask://任务列表
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"这里还没有任务\n赶快起来为团队做点贡献吧";
+                imageName = @"blankpage_image_Task";
+                tipStr = @"这里还没有任务哦";
             }
                 break;
             case EaseBlankPageTypeTopic://讨论列表
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"这里怎么空空的\n发个讨论让它热闹点吧";
+                imageName = @"blankpage_image_Topic";
+                tipStr = @"这里还没有讨论哦";
             }
                 break;
             case EaseBlankPageTypeTweet://冒泡列表（自己的）
             {
-                imageName = @"blankpage_image_Hi";
-                tipStr = @"来，冒个泡吧～";
+                imageName = @"blankpage_image_Tweet";
+                tipStr = @"您还没有发表过冒泡呢～";
+            }
+                break;
+            case EaseBlankPageTypeTweetAction://冒泡列表（自己的）。有发冒泡的按钮
+            {
+                imageName = @"blankpage_image_Tweet";
+                tipStr = @"您还没有发表过冒泡呢～";
+                buttonTitle = @"冒个泡吧";
             }
                 break;
             case EaseBlankPageTypeTweetOther://冒泡列表（别人的）
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"这个人很懒\n一个冒泡都木有～";
+                imageName = @"blankpage_image_Tweet";
+                tipStr = @"这里还没有冒泡哦～";
+            }
+                break;
+            case EaseBlankPageTypeTweetProject://冒泡列表（项目内的）
+            {
+                imageName = @"blankpage_image_Notice";
+                tipStr = @"当前项目没有公告哦～";
             }
                 break;
             case EaseBlankPageTypeProject://项目列表（自己的）
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有项目呢，赶快起来创建吧～";
+                imageName = @"blankpage_image_Project";
+                titleStr = @"欢迎来到 CODING";
+                tipStr = @"协作从项目开始，赶快创建项目吧";
             }
                 break;
             case EaseBlankPageTypeProjectOther://项目列表（别人的）
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"这个人很懒，一个项目都木有～";
+                imageName = @"blankpage_image_Project";
+                tipStr = @"这里还没有项目哦";
             }
                 break;
             case EaseBlankPageTypeFileDleted://去了文件页面，发现文件已经被删除了
             {
-                imageName = @"blankpage_image_loadFail";
-                tipStr = @"晚了一步\n文件刚刚被人删除了～";
+                tipStr = @"晚了一步，此文件刚刚被人删除了～";
+            }
+                break;
+            case EaseBlankPageTypeMRForbidden://去了MR页面，发现没有权限
+            {
+                tipStr = @"抱歉，请联系项目管理员进行代码权限设置";
             }
                 break;
             case EaseBlankPageTypeFolderDleted://文件夹
             {
-                imageName = @"blankpage_image_loadFail";
-                tipStr = @"晚了一步\n文件夹貌似被人删除了～";
+                tipStr = @"晚了一步，此文件夹刚刚被人删除了～";
             }
                 break;
             case EaseBlankPageTypePrivateMsg://私信列表
             {
-                imageName = @"blankpage_image_Hi";
-                tipStr = @"打个招呼吧～";
+                imageName = @"";//就是空
+                tipStr = @"";
             }
                 break;
             case EaseBlankPageTypeMyJoinedTopic://我参与的话题
+            {
+                imageName = @"blankpage_image_Tweet";
+                tipStr = @"您还没有参与过话题讨论呢～";
+            }
+                break;
             case EaseBlankPageTypeMyWatchedTopic://我关注的话题
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还没有话题呢～";
+                imageName = @"blankpage_image_Tweet";
+                tipStr = @"您还没有关注过话题讨论呢～";
             }
                 break;
             case EaseBlankPageTypeOthersJoinedTopic://ta参与的话题
+            {
+                imageName = @"blankpage_image_Tweet";
+                tipStr = @"Ta 还没有参与过话题讨论呢～";
+            }
+                break;
             case EaseBlankPageTypeOthersWatchedTopic://ta关注的话题
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"这个人很懒，一个话题都木有～";
+                imageName = @"blankpage_image_Tweet";
+                tipStr = @"Ta 还没有关注过话题讨论呢～";
             }
                 break;
             case EaseBlankPageTypeFileTypeCannotSupport:
             {
-                imageName = @"blankpage_image_loadFail";
-                tipStr = @"不支持这种类型的文件\n试试右上角的按钮，用其他应用打开吧";
+                tipStr = @"还不支持查看此类型的文件呢";
             }
                 break;
             case EaseBlankPageTypeViewTips:
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"这里没有未读的消息";
+                imageName = @"blankpage_image_Tip";
+                tipStr = @"您还没有收到通知哦";
             }
                 break;
             case EaseBlankPageTypeShopOrders:
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有订单呢\n努力推代码，把洋葱猴带回家～";
+                imageName = @"blankpage_image_ShopOrder";
+                tipStr = @"还没有订单记录～";
+            }
+                break;
+            case EaseBlankPageTypeShopUnPayOrders:
+            {
+                imageName = @"blankpage_image_ShopOrder";
+                tipStr = @"没有待支付的订单记录～";
             }
                 break;
             case EaseBlankPageTypeShopSendOrders:
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有已发货的订单呢～";
+                imageName = @"blankpage_image_ShopOrder";
+                tipStr = @"没有已发货的订单记录～";
             }
                 break;
             case EaseBlankPageTypeShopUnSendOrders:
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有未发货的订单呢～";
+                imageName = @"blankpage_image_ShopOrder";
+                tipStr = @"没有未发货的订单记录～";
             }
                 break;
             case EaseBlankPageTypeNoExchangeGoods:{
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"还木有可兑换的商品呢\n努力推代码，把洋葱猴带回家～";
+                tipStr = @"还没有可兑换的商品呢～";
             }
                 break;
-            case EaseBlankPageTypeProject_ALL:{
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有项目呢，赶快起来创建吧～";
-            }
-                break;
-            case EaseBlankPageTypeProject_CREATE:{
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有项目呢，赶快起来创建吧～";
-            }
-                break;
+            case EaseBlankPageTypeProject_ALL:
+            case EaseBlankPageTypeProject_CREATE:
             case EaseBlankPageTypeProject_JOIN:{
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有项目呢，赶快起来创建吧～";
+                imageName = @"blankpage_image_Project";
+                titleStr = @"欢迎来到 CODING";
+                tipStr = @"协作从项目开始，赶快创建项目吧";
+                buttonTitle=@"创建项目";
             }
                 break;
             case EaseBlankPageTypeProject_WATCHED:{
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有项目呢，赶快起来创建吧～";
+                imageName = @"blankpage_image_Project";
+                tipStr = @"您还没有关注过项目呢～";
+                buttonTitle=@"去关注";
             }
                 break;
             case EaseBlankPageTypeProject_STARED:{
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"您还木有项目呢，赶快起来创建吧～";
+                imageName = @"blankpage_image_Project";
+                tipStr = @"您还没有收藏过项目呢～";
+                buttonTitle=@"去收藏";
             }
                 break;
             case EaseBlankPageTypeProject_SEARCH:{
-                imageName = @"blankpage_image_Sleep";
                 tipStr = @"什么都木有搜到，换个词再试试？";
+            }
+                break;
+            case EaseBlankPageTypeTeam:{
+                imageName = @"blankpage_image_Team";
+                tipStr = @"您还没有参与过团队哦～";
+            }
+                break;
+            case EaseBlankPageTypeFile:{
+                imageName = @"blankpage_image_File";
+                tipStr = @"这里还没有任何文件～";
+            }
+                break;
+            case EaseBlankPageTypeMessageList:{
+                imageName = @"blankpage_image_MessageList";
+                tipStr = @"还没有新消息～";
+            }
+                break;
+            case EaseBlankPageTypeViewPurchase:{
+                imageName = @"blankpage_image_ShopOrder";
+                tipStr = @"还没有订购记录～";
+            }
+                break;
+            case EaseBlankPageTypeCode:
+            {
+                tipStr = @"当前项目还没有提交过代码呢～";
+            }
+                break;
+            case EaseBlankPageTypeWiki:
+            {
+                tipStr = @"当前项目还没有创建 Wiki～";
             }
                 break;
             default://其它页面（这里没有提到的页面，都属于其它）
             {
-                imageName = @"blankpage_image_Sleep";
-                tipStr = @"这里还什么都没有\n赶快起来弄出一点动静吧";
+                tipStr = @"这里什么都没有～";
             }
                 break;
         }
-        [_monkeyView setImage:[UIImage imageNamed:imageName]];
-        _tipLabel.text = tipStr;
-        
-        if ((blankPageType>=EaseBlankPageTypeProject_ALL)&&(blankPageType<=EaseBlankPageTypeProject_STARED)) {
-            [_monkeyView mas_updateConstraints:^(MASConstraintMaker *make) {
-                make.centerX.equalTo(self);
-                make.bottom.equalTo(self.mas_centerY).offset(-35);
-            }];
-            
-            //新增按钮
-            UIButton *actionBtn=({
-                UIButton *button=[UIButton new];
-                button.backgroundColor=[UIColor colorWithHexString:@"0x3BBD79"];
-                button.titleLabel.font=[UIFont systemFontOfSize:15];
-                [button addTarget:self action:@selector(btnAction) forControlEvents:UIControlEventTouchUpInside];
-                button.layer.cornerRadius=18;
-                button.layer.masksToBounds=TRUE;
-                button;
-            });
-            [self addSubview:actionBtn];
-            
-            [actionBtn mas_makeConstraints:^(MASConstraintMaker *make) {
-                make.size.mas_equalTo(CGSizeMake(125 , 36));
-                make.top.equalTo(_tipLabel.mas_bottom).offset(15);
-                make.centerX.equalTo(self);
-            }];
-            
-            NSString *titleStr;
-            switch (blankPageType) {
-                case EaseBlankPageTypeProject_ALL:
-                case EaseBlankPageTypeProject_CREATE:
-                case EaseBlankPageTypeProject_JOIN:
-                    titleStr=@"+ 创建项目";
-                    //                    [actionBtn setTitle:@"+ 创建项目" forState:UIControlStateNormal];
-                    break;
-                case EaseBlankPageTypeProject_WATCHED:
-                    titleStr=@"+ 去关注";
-                    //                    [actionBtn setTitle:@"+ 去关注" forState:UIControlStateNormal];
-                    break;
-                case EaseBlankPageTypeProject_STARED:
-                    titleStr=@"+ 去收藏";
-                    //                    [actionBtn setTitle:@"+去收藏" forState:UIControlStateNormal];
-                    break;
-                default:
-                    break;
-            }
-            //            NSMutableAttributedString *titleFontStr=[[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"+ %@",titleStr]];
-            //            NSRange range;
-            //            range.location=0;
-            //            range.length=1;
-            //            [titleFontStr addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:20] range:range];
-            //            [actionBtn setAttributedTitle:titleFontStr forState:UIControlStateNormal];
-            
-            [actionBtn setTitle:titleStr forState:UIControlStateNormal];
-            
-        }
     }
+    imageName = imageName ?: @"blankpage_image_Default";
+    UIButton *bottomBtn = hasError? _reloadButton: _actionButton;
+    _monkeyView.image = [UIImage imageNamed:imageName];
+    _titleLabel.text = titleStr;
+    _tipLabel.text = tipStr;
+    [bottomBtn setTitle:buttonTitle forState:UIControlStateNormal];
+    _titleLabel.hidden = titleStr.length <= 0;
+    bottomBtn.hidden = buttonTitle.length <= 0;
+    
+    //    布局
+    if (ABS(offsetY) > 0) {
+        self.frame = CGRectMake(0, offsetY, self.width, self.height);
+    }
+    [_monkeyView mas_remakeConstraints:^(MASConstraintMaker *make) {
+        make.centerX.equalTo(self);
+        //            if (ABS(offsetY) > 1.0) {
+        //                make.top.equalTo(self).offset(offsetY);
+        //            }else{
+        make.top.equalTo(self.mas_bottom).multipliedBy(0.15);
+        //            }
+        make.size.mas_equalTo(CGSizeMake(160, 160));
+    }];
+    [_titleLabel mas_remakeConstraints:^(MASConstraintMaker *make) {
+        make.left.equalTo(self).offset(30);
+        make.right.equalTo(self).offset(-30);
+        make.top.equalTo(_monkeyView.mas_bottom);
+    }];
+    [_tipLabel mas_remakeConstraints:^(MASConstraintMaker *make) {
+        make.left.right.equalTo(_titleLabel);
+        if (titleStr.length > 0) {
+            make.top.equalTo(_titleLabel.mas_bottom).offset(10);
+        }else{
+            make.top.equalTo(_monkeyView.mas_bottom);
+        }
+    }];
+    if (buttonTitle.length > 0) {
+        
+    }
+    [bottomBtn mas_remakeConstraints:^(MASConstraintMaker *make) {
+        make.centerX.equalTo(self);
+        make.size.mas_equalTo(CGSizeMake(130, 44));
+        make.top.equalTo(_tipLabel.mas_bottom).offset(25);
+    }];
 }
 
 - (void)reloadButtonClicked:(id)sender{

@@ -16,7 +16,7 @@ typedef enum {
     StrapSuccessStyle,
     StrapInfoStyle,
     StrapWarningStyle,
-    StrapDangerStyle
+    StrapDangerStyle,
 } StrapButtonStyle;
 
 @interface UIButton (Bootstrap)

@@ -68,15 +68,15 @@
     [self updateToolbarItems];
 }
 
-- (void)viewDidUnload {
-    [super viewDidUnload];
-    self.webView = nil;
-    _backBarButtonItem = nil;
-    _forwardBarButtonItem = nil;
-    _refreshBarButtonItem = nil;
-    _stopBarButtonItem = nil;
-    _actionBarButtonItem = nil;
-}
+//- (void)viewDidUnload {
+//    [super viewDidUnload];
+//    self.webView = nil;
+//    _backBarButtonItem = nil;
+//    _forwardBarButtonItem = nil;
+//    _refreshBarButtonItem = nil;
+//    _stopBarButtonItem = nil;
+//    _actionBarButtonItem = nil;
+//}
 
 - (void)viewWillAppear:(BOOL)animated {
     NSAssert(self.navigationController, @"SVWebViewController needs to be contained in a UINavigationController. If you are presenting SVWebViewController modally, use SVModalWebViewController instead.");
@@ -104,11 +104,19 @@
     [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
 }
 
-- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation {
-    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
-        return YES;
-    
-    return toInterfaceOrientation != UIInterfaceOrientationPortraitUpsideDown;
+//- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation {
+//    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
+//        return YES;
+//
+//    return toInterfaceOrientation != UIInterfaceOrientationPortraitUpsideDown;
+//}
+
+- (BOOL)shouldAutorotate {
+    return YES;
+}
+
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+    return UIInterfaceOrientationMaskAllButUpsideDown;
 }
 
 #pragma mark - Getters
@@ -168,10 +176,10 @@
 #pragma mark - Toolbar
 
 - (void)updateToolbarItems {
-    self.backBarButtonItem.enabled = self.self.webView.canGoBack;
-    self.forwardBarButtonItem.enabled = self.self.webView.canGoForward;
+    self.backBarButtonItem.enabled = self.webView.canGoBack;
+    self.forwardBarButtonItem.enabled = self.webView.canGoForward;
     
-    UIBarButtonItem *refreshStopBarButtonItem = self.self.webView.isLoading ? self.stopBarButtonItem : self.refreshBarButtonItem;
+    UIBarButtonItem *refreshStopBarButtonItem = self.webView.isLoading ? self.stopBarButtonItem : self.refreshBarButtonItem;
     
     UIBarButtonItem *fixedSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:nil action:nil];
     UIBarButtonItem *flexibleSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
@@ -194,7 +202,7 @@
         UIToolbar *toolbar = [[UIToolbar alloc] initWithFrame:CGRectMake(0.0f, 0.0f, toolbarWidth, 44.0f)];
         toolbar.items = items;
         toolbar.barStyle = self.navigationController.navigationBar.barStyle;
-        toolbar.tintColor = [UIColor colorWithHexString:@"0x3bbd79"];
+        toolbar.tintColor = kColorBrandBlue;
         self.navigationItem.rightBarButtonItems = items.reverseObjectEnumerator.allObjects;
     }
     
@@ -212,7 +220,7 @@
                           nil];
         
         self.navigationController.toolbar.barStyle = self.navigationController.navigationBar.barStyle;
-        self.navigationController.toolbar.tintColor = [UIColor colorWithHexString:@"0x3bbd79"];
+        self.navigationController.toolbar.tintColor = kColorBrandBlue;
         self.toolbarItems = items;
     }
 }
@@ -232,7 +240,7 @@
 - (void)webViewDidFinishLoad:(UIWebView *)webView {
     [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
     
-    self.navigationItem.title = [webView stringByEvaluatingJavaScriptFromString:@"document.title"];
+    self.title = [webView stringByEvaluatingJavaScriptFromString:@"document.title"];
     
     [self updateToolbarItems];
     

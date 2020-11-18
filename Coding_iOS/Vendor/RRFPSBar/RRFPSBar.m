@@ -59,7 +59,12 @@
 
 
 - (id)init {
-    if( (self = [super initWithFrame:[[UIApplication sharedApplication] statusBarFrame]]) ){
+    CGRect frame = [[UIApplication sharedApplication] statusBarFrame];
+    if (frame.size.width < 1.0) {
+        frame = [UIScreen mainScreen].bounds;
+        frame.size.height = 20;
+    }
+    if( (self = [super initWithFrame:frame]) ){
         
         _maxHistoryDTLength = (NSInteger)CGRectGetWidth(self.bounds);
         _historyDT = malloc(sizeof(CFTimeInterval) * _maxHistoryDTLength);
@@ -102,7 +107,7 @@
         // Chart Layer
         _chartLayer = [CAShapeLayer layer];
         [_chartLayer setFrame: self.bounds];
-        [_chartLayer setStrokeColor: [UIColor redColor].CGColor];
+        [_chartLayer setStrokeColor: [UIColor yellowColor].CGColor];
         [_chartLayer setContentsScale: [UIScreen mainScreen].scale];
         [self.layer addSublayer:_chartLayer];
 

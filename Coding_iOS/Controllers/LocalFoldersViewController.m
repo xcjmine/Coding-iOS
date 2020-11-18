@@ -38,12 +38,15 @@
         [tableView registerClass:[LocalFolderCell class] forCellReuseIdentifier:kCellIdentifier_LocalFolderCell];
         tableView.sectionIndexBackgroundColor = [UIColor clearColor];
         tableView.sectionIndexTrackingBackgroundColor = [UIColor clearColor];
-        tableView.sectionIndexColor = [UIColor colorWithHexString:@"0x666666"];
+        tableView.sectionIndexColor = kColor666;
         [self.view addSubview:tableView];
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
         tableView.allowsMultipleSelectionDuringEditing = YES;
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _myRefreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];
@@ -58,7 +61,7 @@
 
 - (void)refresh{
     BOOL hasData = [self findLocalFile];
-    [self.view configBlankPage:EaseBlankPageTypeView hasData:hasData hasError:NO reloadButtonBlock:nil];
+    [self.view configBlankPage:EaseBlankPageTypeFile hasData:hasData hasError:NO reloadButtonBlock:nil];
     if (!hasData) {
         [self.myRefreshControl endRefreshing];
         return;
@@ -112,6 +115,7 @@
         }
     }
     [self.myTableView reloadData];
+    [self changeEditStateToEditing:self.myTableView.isEditing];
     return localFileUrlList.count > 0;
 }
 
@@ -181,7 +185,7 @@
     NSString *projectId = _projectId_list[indexPath.row];
     
     __weak typeof(self) weakSelf = self;
-    UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"确定要删除该文件夹内所有本地文件吗？" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+    UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"确定要删除该文件夹内所有本地文件吗？" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
         if (index == 0) {
             [weakSelf deleteFilesWithProjectIdList:@[projectId]];
         }
@@ -194,16 +198,18 @@
     [_myTableView setEditing:isEditing animated:YES];
     NSArray *rightBarButtonItems;
     if (isEditing) {
-        UIBarButtonItem *item1 = [UIBarButtonItem itemWithBtnTitle:@"完成" target:self action:@selector(changeEditState)];
-        UIBarButtonItem *spaceItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:nil action:nil];
-        spaceItem.width = 20;
-        UIBarButtonItem *item2 = [UIBarButtonItem itemWithBtnTitle:@"反选" target:self action:@selector(reverseSelect)];
-        rightBarButtonItems = @[item1, spaceItem, item2];
+//        UIBarButtonItem *item1 = [UIBarButtonItem itemWithBtnTitle:@"完成" target:self action:@selector(changeEditState)];
+//        UIBarButtonItem *spaceItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:nil action:nil];
+//        spaceItem.width = 20;
+//        UIBarButtonItem *item2 = [UIBarButtonItem itemWithBtnTitle:@"反选" target:self action:@selector(reverseSelect)];
+//        rightBarButtonItems = @[item1, spaceItem, item2];
+        UIBarButtonItem *item1 = [UIBarButtonItem itemWithBtnTitle:@"取消" target:self action:@selector(changeEditState)];
+        rightBarButtonItems = @[item1];
     }else{
         UIBarButtonItem *item1 = [UIBarButtonItem itemWithBtnTitle:@"编辑" target:self action:@selector(changeEditState)];
         rightBarButtonItems = @[item1];
     }
-    [self.navigationItem setRightBarButtonItems:rightBarButtonItems animated:YES];
+    [self.navigationItem setRightBarButtonItems:_projectId_list.count > 0? rightBarButtonItems: nil animated:YES];
     [self configToolBar];
     [self.myTableView performSelector:@selector(reloadData) withObject:nil afterDelay:0.3];
 }
@@ -233,7 +239,7 @@
 - (void)configToolBar{
     //添加底部ToolBar
     if (!_myEditToolBar) {
-        EaseToolBarItem *item = [EaseToolBarItem easeToolBarItemWithTitle:@" 删除" image:@"button_file_denete_enable" disableImage:nil];
+        EaseToolBarItem *item = [EaseToolBarItem easeToolBarItemWithTitle:@"删除" image:@"button_file_denete_enable" disableImage:nil];
         _myEditToolBar = [EaseToolBar easeToolBarWithItems:@[item]];
         _myEditToolBar.delegate = self;
         [self.view addSubview:_myEditToolBar];
@@ -256,7 +262,7 @@
     if (toolBar == _myEditToolBar) {
         if (index == 0) {
             __weak typeof(self) weakSelf = self;
-            UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"确定要删除选中文件夹内所有本地文件吗？" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+            UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"确定要删除选中文件夹内所有本地文件吗？" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
                 if (index == 0) {
                     [weakSelf deleteSelectedFolders];
                 }

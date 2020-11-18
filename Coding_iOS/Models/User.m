@@ -7,9 +7,20 @@
 //
 
 #import "User.h"
+#import "CodingSkill.h"
+
 
 @implementation User
 
+- (instancetype)init
+{
+    self = [super init];
+    if (self) {
+        _propertyArrayMap = [NSDictionary dictionaryWithObjectsAndKeys:
+                             @"CodingSkill", @"skills", nil];
+    }
+    return self;
+}
 
 -(id)copyWithZone:(NSZone*)zone {
     User *user = [[[self class] allocWithZone:zone] init];
@@ -46,6 +57,7 @@
     user.created_at = [_created_at copy];
     user.updated_at = [_updated_at copy];
     user.email_validation = [_email_validation copy];
+    user.school = [_school copy];
     return user;
 }
 
@@ -119,6 +131,25 @@
         return @"未添加";
     }
 }
+- (NSString *)skills_str{
+    if (_skills.count > 0) {
+        return [[_skills valueForKey:@"skill_str"] componentsJoinedByString:@"，"];
+    }else{
+        return @"未填写";
+    }
+}
+- (NSString *)school{
+    return _school.length > 0? _school: @"未填写";
+}
+- (NSString *)degree_str{
+    NSArray *degreeList = [User degreeList];
+    NSInteger degreeIndex = _degree.integerValue - 1;
+    if (degreeIndex >= 0 && degreeIndex < degreeList.count) {
+        return degreeList[degreeIndex];
+    }else{
+        return @"未填写";
+    }
+}
 - (NSString *)slogan{
     if (_slogan && _slogan.length > 0) {
         return _slogan;
@@ -141,32 +172,72 @@
     return _pinyinName;
 }
 
+- (NSString *)vipName{
+    NSDictionary *vipDict = @{@1: @"普通会员",
+                              @2: @"银牌会员",
+                              @3: @"黄金会员",
+                              @4: @"钻石会员",
+                              };
+    return vipDict[_vip];
+}
+
 - (NSString *)toUpdateInfoPath{
     return @"api/user/updateInfo";
 }
 - (NSDictionary *)toUpdateInfoParams{
-    return @{@"id" : _id,
-             @"email" : _email? _email: @"",
-             @"global_key" : _global_key? _global_key: @"",
-//             暂时没用到
-//             @"introduction" : _introduction,
-//             @"phone" : _phone,
-//             /static/fruit_avatar/Fruit-20.png
-             @"lavatar" : _avatar? _avatar: [NSString stringWithFormat:@"/static/fruit_avatar/Fruit-%d.png", (rand()%20)+1],
-             @"name" : _name? _name: @"",
-             @"sex" : _sex? _sex: [NSNumber numberWithInteger:2],
-             @"birthday" : _birthday? _birthday: @"",
-             @"location" : _location? _location: @"",
-             @"slogan" : _slogan? _slogan: @"",
-             @"company" : _company? _company: @"",
-             @"job" : _job? _job: [NSNumber numberWithInteger:0],
-             @"tags" : _tags? _tags: @""};
+    NSMutableDictionary *params = @{@"id" : _id,
+                                    @"email" : _email? _email: @"",
+                                    @"global_key" : _global_key? _global_key: @"",
+                                    //             暂时没用到
+                                    //             @"introduction" : _introduction,
+                                    //             @"phone" : _phone,
+                                    //             /static/fruit_avatar/Fruit-20.png
+                                    @"lavatar" : _avatar? _avatar: [NSString stringWithFormat:@"/static/fruit_avatar/Fruit-%d.png", (rand()%20)+1],
+                                    @"name" : _name? _name: @"",
+                                    @"sex" : _sex? _sex: [NSNumber numberWithInteger:2],
+                                    @"birthday" : _birthday? _birthday: @"",
+                                    @"location" : _location? _location: @"",
+                                    @"slogan" : _slogan? _slogan: @"",
+                                    @"company" : _company? _company: @"",
+                                    @"job" : _job? _job: [NSNumber numberWithInteger:0],
+                                    @"tags" : _tags? _tags: @"",
+                                    }.mutableCopy;
+    if (!kTarget_Enterprise) {
+        params[@"school"] = _school ?: @"";
+        params[@"degree"] = _degree ?: @"";
+        for (int index = 0; index < _skills.count; index++) {
+            CodingSkill *curSkill = _skills[index];
+            params[[NSString stringWithFormat:@"skills[%d]", index]] = [NSString stringWithFormat:@"%@:%@", curSkill.skillId, curSkill.level];
+        }
+    }
+    return params;
 }
 - (NSString *)toDeleteConversationPath{
     return [NSString stringWithFormat:@"api/message/conversations/%@", self.id.stringValue];
 }
 - (NSString *)localFriendsPath{
     return @"FriendsPath";
+}
+
+- (BOOL)isUserInfoCompleted{
+    if (!_sex || _birthday.length <= 0 || _location.length <= 0 || !_job || !_degree || _school.length <= 0 || !_is_phone_validated.boolValue || !_email_validation.boolValue || _skills.count <= 0) {
+        return NO;
+    }
+    return YES;
+}
+
+- (BOOL)canUpgradeByCompleteUserInfo{
+    return NO;//
+//    return (!self.isUserInfoCompleted && self.vip.integerValue < 2);
+}
+
+- (BOOL)willExpired{
+    NSTimeInterval timeInterval = [self.vip_expired_at timeIntervalSinceDate:[NSDate date]];
+    return (self.vip.integerValue >= 3 && (timeInterval < 3 * 24 * 60 * 60));
+}
+
+- (BOOL)hasNoEamilAndPhone{
+    return self.email.length <= 0 && self.phone.length <= 0;
 }
 
 - (NSString *)changePasswordTips{
@@ -185,5 +256,9 @@
         tipStr = @"新密码不得长于64位";
     }
     return tipStr;
+}
+
++ (NSArray *)degreeList{
+    return @[@"高中及以下", @"大专", @"本科", @"硕士及以上"];
 }
 @end

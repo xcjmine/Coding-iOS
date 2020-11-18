@@ -13,10 +13,12 @@
 
 #import "ProjectAboutMeListCell.h"
 #import "NSString+Attribute.h"
+#import "YLImageView.h"
 
 @interface ProjectAboutMeListCell ()
 @property (nonatomic, strong) Project *project;
-@property (nonatomic, strong) UIImageView *projectIconView, *privateIconView, *pinIconView;
+@property (strong, nonatomic) YLImageView *projectIconView;
+@property (nonatomic, strong) UIImageView *privateIconView, *pinIconView;
 @property (nonatomic, strong) UIButton *setCommonBtn;
 @property (nonatomic, strong) UILabel *projectTitleLabel;
 @property (nonatomic, strong) UILabel *ownerTitleLabel;
@@ -30,9 +32,8 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
-        self.backgroundColor = [UIColor clearColor];
         if (!_projectIconView) {
-            _projectIconView = [[UIImageView alloc] initWithFrame:CGRectMake(12, 12, kIconSize, kIconSize)];
+            _projectIconView = [[YLImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, kPaddingLeftWidth, kIconSize, kIconSize)];
             _projectIconView.layer.masksToBounds = YES;
             _projectIconView.layer.cornerRadius = 2.0;
             [self.contentView addSubview:_projectIconView];
@@ -40,21 +41,21 @@
         
         if (!_projectTitleLabel) {
             _projectTitleLabel = [UILabel new];
-            _projectTitleLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _projectTitleLabel.textColor = kColorDark3;
             _projectTitleLabel.font = [UIFont systemFontOfSize:17];
             [self.contentView addSubview:_projectTitleLabel];
         }
         if (!_ownerTitleLabel) {
             _ownerTitleLabel = [UILabel new];
-            _ownerTitleLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _ownerTitleLabel.textColor = kColorDarkA;
             _ownerTitleLabel.font = [UIFont systemFontOfSize:15];
             [self.contentView addSubview:_ownerTitleLabel];
         }
         if (!_describeLabel) {
             _describeLabel = [UILabel new];
-            _describeLabel.textColor = [UIColor colorWithHexString:@"0x666666"];
+            _describeLabel.textColor = kColorDark7;
             _describeLabel.font = [UIFont systemFontOfSize:14];
-            _describeLabel.numberOfLines=1;
+            _describeLabel.numberOfLines = kTarget_Enterprise? 0: 1;
             [self.contentView addSubview:_describeLabel];
         }
 
@@ -116,7 +117,7 @@
         make.top.equalTo(_projectIconView.mas_top);
         make.height.equalTo(@(20));
         make.left.equalTo(_privateIconView.mas_right).offset(_privateIconView.hidden?0:8);
-        make.right.lessThanOrEqualTo(self.mas_right).offset(-12);
+        make.right.lessThanOrEqualTo(self.mas_right).offset(-kPaddingLeftWidth);
     }];
     
     [_ownerTitleLabel mas_updateConstraints:^(MASConstraintMaker *make) {
@@ -125,13 +126,21 @@
         make.bottom.equalTo(_projectIconView.mas_bottom);
     }];
     
-    [_describeLabel mas_updateConstraints:^(MASConstraintMaker *make) {
-        make.left.equalTo(self.privateIconView);
-        make.height.equalTo(@(38));
-        make.width.equalTo(@(kScreen_Width-kLeftOffset-kIconSize-20));
-        make.top.equalTo(_projectTitleLabel.mas_bottom);
-    }];
-
+    if (kTarget_Enterprise) {
+        _privateIconView.hidden = _ownerTitleLabel.hidden = YES;
+        [_describeLabel mas_updateConstraints:^(MASConstraintMaker *make) {
+            make.left.right.equalTo(self.projectTitleLabel);
+            make.bottom.lessThanOrEqualTo(self.projectIconView);
+            make.top.equalTo(self.projectTitleLabel.mas_bottom).offset(5);
+        }];
+    }else{
+        [_describeLabel mas_updateConstraints:^(MASConstraintMaker *make) {
+            make.left.equalTo(self.privateIconView);
+            make.height.equalTo(@(38));
+            make.width.equalTo(@(kScreen_Width-kLeftOffset-kIconSize-20));
+            make.top.equalTo(_projectTitleLabel.mas_bottom);
+        }];
+    }
 
     //Title & UserName & description
     if (_openKeywords) {
@@ -175,8 +184,9 @@
 
 - (NSArray *)rightButtons{
     NSMutableArray *rightUtilityButtons = [NSMutableArray new];
-    [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:_project.pin.boolValue? @"0xeeeeee": @"0x3bbd79"]
-                                                title:_project.pin.boolValue?@"取消常用":@"设置常用" titleColor:[UIColor colorWithHexString:_project.pin.boolValue?@"0x3bbd79":@"0xffffff"]];
+    [rightUtilityButtons sw_addUtilityButtonWithColor:_project.pin.boolValue? kColorTableSectionBg: kColorBrandBlue
+                                                title:_project.pin.boolValue?@"取消常用":@"设置常用"
+                                           titleColor:_project.pin.boolValue? kColorBrandBlue: [UIColor whiteColor]];
     return rightUtilityButtons;
 }
 

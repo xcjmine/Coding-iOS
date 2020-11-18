@@ -32,11 +32,14 @@
         [tableView registerClass:[ForkTreeCell class] forCellReuseIdentifier:kCellIdentifier_ForkTreeCell];
         tableView.sectionIndexBackgroundColor = [UIColor clearColor];
         tableView.sectionIndexTrackingBackgroundColor = [UIColor clearColor];
-        tableView.sectionIndexColor = [UIColor colorWithHexString:@"0x666666"];
+        tableView.sectionIndexColor = kColor666;
         [self.view addSubview:tableView];
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _myRefreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];

@@ -8,6 +8,7 @@
 
 #import "ValueListViewController.h"
 #import "ValueListCell.h"
+#import "ProjectTypeExplanationViewController.h"
 
 @interface ValueListViewController ()
 @property (strong, nonatomic) UITableView *myTableView;
@@ -47,6 +48,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     if (self.type == ValueListTypeProjectMemberType) {
@@ -82,14 +86,11 @@
         row = self.dataList.count-1 -row;
     }
     switch (_type) {
-        case ValueListTypeTaskStatus:
-        case ValueListTypeProjectMemberType:
-            [cell setTitleStr:[_dataList objectAtIndex:row] imageStr:nil isSelected:(_selectedIndex == row)];
-            break;
         case ValueListTypeTaskPriority:
             [cell setTitleStr:[_dataList objectAtIndex:row] imageStr:[NSString stringWithFormat:@"taskPriority%ld", (long)row] isSelected:(_selectedIndex == row)];
             break;
         default:
+            [cell setTitleStr:[_dataList objectAtIndex:row] imageStr:nil isSelected:(_selectedIndex == row)];
             break;
     }
     [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:10];
@@ -118,15 +119,26 @@
     }
     self.selectedIndex = value;
 
-    if (_type == ValueListTypeTaskPriority || _type == ValueListTypeTaskStatus) {
+//    if (_type == ValueListTypeTaskPriority || _type == ValueListTypeTaskStatus) {
         [self.navigationController popViewControllerAnimated:YES];
-        if (_selectBlock) {
-            _selectBlock(self.selectedIndex);
-        }
-    }else{
-        [self.myTableView reloadData];
-    }
+//    在 viewWillDisappear 有 _selectBlock 了已经
+//        if (_selectBlock) {
+//            _selectBlock(self.selectedIndex);
+//        }
+//    }else{
+//        [self.myTableView reloadData];
+//    }
 }
+
+#ifdef Target_Enterprise
+
+#pragma mark - Tip
+- (void)showMemberTypeTip{
+    ProjectTypeExplanationViewController *vc = [ProjectTypeExplanationViewController new];
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+#else
 
 #pragma mark - Tip
 - (void)showMemberTypeTip{
@@ -194,5 +206,7 @@
         self.myTableView.scrollEnabled = YES;
     }];
 }
+
+#endif
 
 @end

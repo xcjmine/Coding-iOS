@@ -17,13 +17,17 @@ typedef NS_ENUM(NSInteger, EaseBlankPageType)
 {
     EaseBlankPageTypeView = 0,
     EaseBlankPageTypeActivity,
+    EaseBlankPageTypeTaskResource,
     EaseBlankPageTypeTask,
     EaseBlankPageTypeTopic,
     EaseBlankPageTypeTweet,
+    EaseBlankPageTypeTweetAction,
     EaseBlankPageTypeTweetOther,
+    EaseBlankPageTypeTweetProject,
     EaseBlankPageTypeProject,
     EaseBlankPageTypeProjectOther,
     EaseBlankPageTypeFileDleted,
+    EaseBlankPageTypeMRForbidden,
     EaseBlankPageTypeFolderDleted,
     EaseBlankPageTypePrivateMsg,
     EaseBlankPageTypeMyWatchedTopic,
@@ -33,6 +37,7 @@ typedef NS_ENUM(NSInteger, EaseBlankPageType)
     EaseBlankPageTypeFileTypeCannotSupport,
     EaseBlankPageTypeViewTips,
     EaseBlankPageTypeShopOrders,
+    EaseBlankPageTypeShopUnPayOrders,
     EaseBlankPageTypeShopSendOrders,
     EaseBlankPageTypeShopUnSendOrders,
     EaseBlankPageTypeNoExchangeGoods,
@@ -42,6 +47,12 @@ typedef NS_ENUM(NSInteger, EaseBlankPageType)
     EaseBlankPageTypeProject_WATCHED,
     EaseBlankPageTypeProject_STARED,
     EaseBlankPageTypeProject_SEARCH,
+    EaseBlankPageTypeTeam,
+    EaseBlankPageTypeFile,
+    EaseBlankPageTypeMessageList,
+    EaseBlankPageTypeViewPurchase,
+    EaseBlankPageTypeCode,
+    EaseBlankPageTypeWiki,
 };
 
 typedef NS_ENUM(NSInteger, BadgePositionType) {
@@ -105,6 +116,7 @@ typedef NS_ENUM(NSInteger, BadgePositionType) {
 #pragma mark BlankPageView
 @property (strong, nonatomic) EaseBlankPageView *blankPageView;
 - (void)configBlankPage:(EaseBlankPageType)blankPageType hasData:(BOOL)hasData hasError:(BOOL)hasError reloadButtonBlock:(void(^)(id sender))block;
+- (void)configBlankPage:(EaseBlankPageType)blankPageType hasData:(BOOL)hasData hasError:(BOOL)hasError offsetY:(CGFloat)offsetY reloadButtonBlock:(void(^)(id sender))block;
 @end
 
 @interface EaseLoadingView : UIView
@@ -116,12 +128,12 @@ typedef NS_ENUM(NSInteger, BadgePositionType) {
 
 @interface EaseBlankPageView : UIView
 @property (strong, nonatomic) UIImageView *monkeyView;
-@property (strong, nonatomic) UILabel *tipLabel;
-@property (strong, nonatomic) UIButton *reloadButton;
+@property (strong, nonatomic) UILabel *tipLabel, *titleLabel;
+@property (strong, nonatomic) UIButton *reloadButton, *actionButton;
 @property (assign, nonatomic) EaseBlankPageType curType;
 @property (copy, nonatomic) void(^reloadButtonBlock)(id sender);
 @property (copy, nonatomic) void(^loadAndShowStatusBlock)();
 @property (copy, nonatomic) void(^clickButtonBlock)(EaseBlankPageType curType);
-- (void)configWithType:(EaseBlankPageType)blankPageType hasData:(BOOL)hasData hasError:(BOOL)hasError reloadButtonBlock:(void(^)(id sender))block;
+- (void)configWithType:(EaseBlankPageType)blankPageType hasData:(BOOL)hasData hasError:(BOOL)hasError offsetY:(CGFloat)offsetY reloadButtonBlock:(void(^)(id sender))block;
 @end
 

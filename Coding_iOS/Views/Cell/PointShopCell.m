@@ -18,8 +18,8 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
-        self.backgroundColor = [UIColor clearColor];
         self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        self.clipsToBounds = YES;
         if (!_iconView) {
             _iconView = [UIImageView new];
             [self.contentView addSubview:_iconView];
@@ -28,7 +28,7 @@
             _titleL = [UILabel new];
             _titleL.textAlignment = NSTextAlignmentLeft;
             _titleL.font = [UIFont systemFontOfSize:15];
-            _titleL.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _titleL.textColor = kColor222;
             [self.contentView addSubview:_titleL];
         }
         [_iconView mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -46,6 +46,6 @@
     return self;
 }
 + (CGFloat)cellHeight{
-    return 50.0;
+    return 0.0;
 }
 @end

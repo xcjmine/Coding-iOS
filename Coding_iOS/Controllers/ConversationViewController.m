@@ -48,7 +48,7 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
     //    添加myTableView
     _myTableView = ({
         UITableView *tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStylePlain];
-        tableView.backgroundColor = [UIColor clearColor];
+        tableView.backgroundColor = kColorTableBG;
         tableView.dataSource = self;
         tableView.delegate = self;
         tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
@@ -59,6 +59,9 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
 //    _refreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];
@@ -155,7 +158,7 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
     static BOOL keyboard_is_down = YES;
     static CGPoint keyboard_down_ContentOffset;
     static CGFloat keyboard_down_InputViewHeight;
-    if (heightToBottom > CGRectGetHeight(inputView.frame)) {
+    if (heightToBottom > [inputView heightWithSafeArea]) {
         if (keyboard_is_down) {
             keyboard_down_ContentOffset = self.myTableView.contentOffset;
             keyboard_down_InputViewHeight = CGRectGetHeight(inputView.frame);
@@ -166,9 +169,7 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
         CGFloat spaceHeight = MAX(0, CGRectGetHeight(self.myTableView.frame) - self.myTableView.contentSize.height - keyboard_down_InputViewHeight);
         contentOffset.y += MAX(0, heightToBottom - keyboard_down_InputViewHeight - spaceHeight);
         NSLog(@"\nspaceHeight:%.2f heightToBottom:%.2f diff:%.2f Y:%.2f", spaceHeight, heightToBottom, MAX(0, heightToBottom - CGRectGetHeight(inputView.frame) - spaceHeight), contentOffset.y);
-        [UIView animateWithDuration:0.25 delay:0.0f options:UIViewAnimationOptionTransitionFlipFromBottom animations:^{
-            self.myTableView.contentOffset = contentOffset;
-        } completion:nil];
+        self.myTableView.contentOffset = contentOffset;
     }else{
         keyboard_is_down = YES;
     }
@@ -255,7 +256,7 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
     PrivateMessage *curMsg = [_myPriMsgs.dataList objectAtIndex:curIndex];
     if (curMsg.hasMedia) {
         cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_MessageMedia forIndexPath:indexPath];
-    }else if (curMsg.file || curMsg.voiceMedia) {
+    }else if ([curMsg isVoice]) {
         cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_MessageVoice forIndexPath:indexPath];
     }else{
         cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_Message forIndexPath:indexPath];
@@ -266,19 +267,24 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
         preMsg = [_myPriMsgs.dataList objectAtIndex:curIndex+1];
     }
     cell.tapUserIconBlock = ^(User *sender){
-        UserInfoViewController *vc = [[UserInfoViewController alloc] init];
-        vc.curUser = sender;
-        [self.navigationController pushViewController:vc animated:YES];
+        if (kTarget_Enterprise) {
+            UserInfoDetailViewController *vc = [[UserInfoDetailViewController alloc] init];
+            vc.curUser = sender;
+            [self.navigationController pushViewController:vc animated:YES];
+        }else{
+            UserInfoViewController *vc = [[UserInfoViewController alloc] init];
+            vc.curUser = sender;
+            [self.navigationController pushViewController:vc animated:YES];
+        }
     };
     ESWeakSelf;
     cell.resendMessageBlock = ^(PrivateMessage *curMessage){
         ESStrongSelf;
         _self.messageToResendOrDelete = curMessage;
         [_self.myMsgInputView isAndResignFirstResponder];
-        UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"重新发送" buttonTitles:@[@"发送"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"重新发送" buttonTitles:@[@"发送"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0 && _self.messageToResendOrDelete) {
                 [_self sendPrivateMessageWithMsg:_messageToResendOrDelete];
-
             }
         }];
         [actionSheet showInView:self.view];
@@ -298,14 +304,14 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
             [menuItemArray addObject:@"拷贝文字"];
         }
     }else{
-        if (!(curMsg.voiceMedia || curMsg.file)) {
+        if (!([curMsg isVoice])) {
             [menuItemArray addObject:@"拷贝"];
         }
     }
     if (canDelete) {
         [menuItemArray addObject:@"删除"];
     }
-    if (curMsg.sendStatus == PrivateMessageStatusSendSucess) {
+    if (curMsg.sendStatus == PrivateMessageStatusSendSucess && ![curMsg isVoice]) {
         [menuItemArray addObject:@"转发"];
     }
 
@@ -327,7 +333,7 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
     self.messageToResendOrDelete = toDeleteMsg;
     [self.myMsgInputView isAndResignFirstResponder];
     ESWeakSelf
-    UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"删除后将不会出现在你的私信记录中" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+    UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"删除后将不会出现在你的私信记录中" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
         ESStrongSelf
         if (index == 0 && _self.messageToResendOrDelete) {
             [_self deletePrivateMessageWithMsg:_messageToResendOrDelete];
@@ -412,6 +418,16 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
     [[Coding_NetAPIManager sharedManager] request_SendPrivateMessage:nextMsg andBlock:^(id data, NSError *error) {
         if (data) {
             [weakSelf.myPriMsgs sendSuccessMessage:data andOldMessage:nextMsg];
+        }else if (error.userInfo[@"msg"][@"message_need_captcha"]){
+            NSDictionary *params = @{@"type": @2,
+                                     @"receiver_global_key": nextMsg.friend.global_key ?: @"",
+                                     };
+            [NSObject showCaptchaViewParams:params.mutableCopy success:^{
+                [NSObject showHudTipStr:@"验证码正确"];
+                weakSelf.messageToResendOrDelete = nextMsg;
+                [weakSelf.myMsgInputView isAndResignFirstResponder];
+                [weakSelf sendPrivateMessageWithMsg:weakSelf.messageToResendOrDelete];
+            }];
         }
         [weakSelf dataChangedWithError:NO scrollToBottom:YES animated:YES];
     } progerssBlock:^(CGFloat progressValue) {
@@ -437,12 +453,11 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
                 return;
             }
             QBImagePickerController *imagePickerController = [[QBImagePickerController alloc] init];
-            imagePickerController.filterType = QBImagePickerControllerFilterTypePhotos;
+            imagePickerController.mediaType = QBImagePickerMediaTypeImage;
             imagePickerController.delegate = self;
             imagePickerController.allowsMultipleSelection = YES;
             imagePickerController.maximumNumberOfSelection = 6;
-            UINavigationController *navigationController = [[BaseNavigationController alloc] initWithRootViewController:imagePickerController];
-            [self presentViewController:navigationController animated:YES completion:NULL];
+            [self presentViewController:imagePickerController animated:YES completion:NULL];
         }
             break;
         case 1:
@@ -479,16 +494,9 @@ static const NSTimeInterval kPollTimeInterval = 3.0;
 }
 
 #pragma mark QBImagePickerControllerDelegate
-- (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didSelectAssets:(NSArray *)assets{
-    for (ALAsset *assetItem in assets) {
-        @weakify(self);
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            UIImage *highQualityImage = [UIImage fullScreenImageALAsset:assetItem];
-            dispatch_async(dispatch_get_main_queue(), ^{
-                @strongify(self);
-                [self sendPrivateMessage:highQualityImage];
-            });
-        });
+- (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didFinishPickingAssets:(NSArray *)assets{
+    for (PHAsset *assetItem in assets) {
+        [self sendPrivateMessage:assetItem.loadImage];
     }
     [self dismissViewControllerAnimated:YES completion:nil];
 }

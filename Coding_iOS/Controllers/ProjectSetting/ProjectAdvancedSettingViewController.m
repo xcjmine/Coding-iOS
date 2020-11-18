@@ -32,6 +32,8 @@
     
     self.tableView.tableFooterView = [UIView new];
     [self.tableView setSeparatorColor:[UIColor colorWithRGBHex:0xe5e5e5]];
+    self.tableView.backgroundColor = kColorTableSectionBg;
+
 }
 
 - (void)didReceiveMemoryWarning {
@@ -163,7 +165,7 @@
 
 #pragma mark - Orientations
 - (BOOL)shouldAutorotate{
-    return UIInterfaceOrientationIsLandscape(self.interfaceOrientation);
+    return UIInterfaceOrientationIsLandscape(UIApplication.sharedApplication.statusBarOrientation);
 }
 
 - (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {

@@ -52,6 +52,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     
@@ -125,9 +128,15 @@
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
     User *user = [_like_reward_users objectAtIndex:indexPath.row];
-    UserInfoViewController *vc = [[UserInfoViewController alloc] init];
-    vc.curUser = user;
-    [self.navigationController pushViewController:vc animated:YES];
+    if (kTarget_Enterprise) {
+        UserInfoDetailViewController *vc = [[UserInfoDetailViewController alloc] init];
+        vc.curUser = user;
+        [self.navigationController pushViewController:vc animated:YES];
+    }else{
+        UserInfoViewController *vc = [[UserInfoViewController alloc] init];
+        vc.curUser = user;
+        [self.navigationController pushViewController:vc animated:YES];
+    }
 }
 
 - (void)dealloc

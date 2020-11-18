@@ -17,8 +17,12 @@
 -(UIImage*)scaledToSize:(CGSize)targetSize;
 -(UIImage*)scaledToSize:(CGSize)targetSize highQuality:(BOOL)highQuality;
 -(UIImage*)scaledToMaxSize:(CGSize )size;
-+ (UIImage *)fullResolutionImageFromALAsset:(ALAsset *)asset;
-+ (UIImage *)fullScreenImageALAsset:(ALAsset *)asset;
+//+ (UIImage *)fullResolutionImageFromALAsset:(ALAsset *)asset;
+//+ (UIImage *)fullScreenImageALAsset:(ALAsset *)asset;
 
 + (UIImage *)imageWithFileType:(NSString *)fileType;
++ (UIImage *)big_imageWithFileType:(NSString *)fileType;
+
+- (NSData *)dataSmallerThan:(CGFloat)maxLength;
+- (NSData *)dataForCodingUpload;
 @end

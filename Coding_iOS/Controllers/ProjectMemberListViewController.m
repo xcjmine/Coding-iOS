@@ -35,13 +35,28 @@
 @implementation ProjectMemberListViewController
 
 - (void)setMyMemberArray:(NSMutableArray *)myMemberArray{
+    [myMemberArray sortUsingComparator:^NSComparisonResult(ProjectMember *obj1, ProjectMember *obj2) {
+        return [[self p_sortWeightOfMember:obj2] compare:[self p_sortWeightOfMember:obj1]];
+    }];
     _myMemberArray = myMemberArray;
-    ProjectMember *mem = [_myMemberArray firstObject];
-    if ([mem.user_id isEqualToNumber:[Login curLoginUser].id]) {
-        _selfRoleType = mem.type;
-    }else{
-        _selfRoleType = @80;//普通成员
+
+    for (ProjectMember *mem in _myMemberArray) {
+        if ([mem.user_id isEqualToNumber:[Login curLoginUser].id]) {
+            _selfRoleType = mem.type;
+            break;
+        }
     }
+}
+
+- (NSNumber *)p_sortWeightOfMember:(ProjectMember *)mem{
+    CGFloat maxMemCount = 9999;
+    NSNumber *weight = nil;
+    BOOL isLoginUser = [mem.user_id isEqualToNumber:[Login curLoginUser].id];
+    BOOL isAddedToWatcher = (_type == ProMemTypeTaskWatchers? [self.curTask hasWatcher:mem.user]:
+                             _type == ProMemTypeTopicWatchers? [self.curTopic hasWatcher:mem.user]:
+                             NO);
+    weight = @(mem.type.integerValue + (isLoginUser? maxMemCount: 0) + (isAddedToWatcher? maxMemCount * 2: 0));
+    return weight;
 }
 
 - (void)willHiden{
@@ -64,13 +79,16 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _mySearchBar = ({
         UISearchBar *searchBar = [[UISearchBar alloc] init];
         searchBar.delegate = self;
         [searchBar sizeToFit];
-        [searchBar setPlaceholder:@"昵称/个性后缀"];
+        [searchBar setPlaceholder:@"昵称/用户名"];
         searchBar;
     });
     _myTableView.tableHeaderView = _mySearchBar;
@@ -99,16 +117,6 @@
 
         if (resultData) {
             NSMutableArray *resultA = [NSObject arrayFromJSON:resultData ofObjects:@"ProjectMember"];
-            __block NSUInteger mineIndex = 0;
-            [resultA enumerateObjectsUsingBlock:^(ProjectMember *obj, NSUInteger idx, BOOL *stop) {
-                if (obj.user_id.integerValue == [Login curLoginUser].id.integerValue) {
-                    mineIndex = idx;
-                    *stop = YES;
-                }
-            }];
-            if (mineIndex > 0) {
-                [resultA exchangeObjectAtIndex:mineIndex withObjectAtIndex:0];
-            }
             weakSelf.myMemberArray = resultA;
             [weakSelf.myTableView reloadData];
         }else{
@@ -214,14 +222,15 @@
         curMember = [_myMemberArray objectAtIndex:indexPath.row];
     }
     __weak typeof(self) weakSelf = self;
-    cell.curMember = curMember;
     cell.type = _type;
-    if (_type == ProMemTypeTaskWatchers) {
-        [cell.leftBtn setImage:[UIImage imageNamed:[self.curTask hasWatcher:curMember.user]? @"btn_project_added": @"btn_project_add"] forState:UIControlStateNormal];
-    }
+    cell.curMember = curMember;
     if (_type == ProMemTypeProject) {
         [cell setRightUtilityButtons:[self rightButtonsWithObj:curMember] WithButtonWidth:[MemberCell cellHeight]];//编辑按钮
         cell.delegate = self;
+    }else if (_type == ProMemTypeTaskWatchers) {
+        [cell.leftBtn setImage:[UIImage imageNamed:[self.curTask hasWatcher:curMember.user]? @"btn_project_added": @"btn_project_add"] forState:UIControlStateNormal];
+    }else if (_type == ProMemTypeTopicWatchers){
+        [cell.leftBtn setImage:[UIImage imageNamed:[self.curTopic hasWatcher:curMember.user]? @"btn_project_added": @"btn_project_add"] forState:UIControlStateNormal];
     }
     cell.leftBtnClickedBlock = ^(UIButton *sender){
         if (tableView.isEditing) {
@@ -230,7 +239,7 @@
         if (weakSelf.type == ProMemTypeProject) {
             if (curMember.user_id.intValue == [Login curLoginUser].id.intValue) {
                 //                自己，退出项目
-                UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"确定退出项目？" buttonTitles:nil destructiveTitle:@"确认退出" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+                UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"确定退出项目？" buttonTitles:nil destructiveTitle:@"确认退出" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
                     if (index == 0) {
                         [weakSelf quitSelf_ProjectMember:curMember];
                     }
@@ -249,8 +258,11 @@
                     if (cell.curMember == curMember) {
                         [sender stopQueryAnimate];
                         if (data) {
-                            BOOL isAdded = [weakSelf.curTask hasWatcher:curMember.user];
+                            BOOL isAdded = [weakSelf.curTask hasWatcher:curMember.user] != nil;
                             [sender setImage:[UIImage imageNamed:isAdded? @"btn_project_added": @"btn_project_add"] forState:UIControlStateNormal];
+                            if (weakSelf.cellBtnBlock) {
+                                weakSelf.cellBtnBlock(curMember);
+                            }
                         }
                     }
                 }];
@@ -262,7 +274,24 @@
                     [weakSelf.curTask.watchers addObject:curMember.user];
                 }
                 [sender setImage:[UIImage imageNamed:!hasWatcher? @"btn_project_added": @"btn_project_add"] forState:UIControlStateNormal];
+                if (weakSelf.cellBtnBlock) {
+                    weakSelf.cellBtnBlock(curMember);
+                }
             }
+        }else if (_type == ProMemTypeTopicWatchers){
+            [sender startQueryAnimate];
+            [[Coding_NetAPIManager sharedManager] request_ChangeWatcher:curMember.user ofTopic:weakSelf.curTopic andBlock:^(id data, NSError *error) {
+                if (cell.curMember == curMember) {
+                    [sender stopQueryAnimate];
+                    if (data) {
+                        BOOL isAdded = [weakSelf.curTopic hasWatcher:curMember.user] != nil;
+                        [sender setImage:[UIImage imageNamed:isAdded? @"btn_project_added": @"btn_project_add"] forState:UIControlStateNormal];
+                        if (weakSelf.cellBtnBlock) {
+                            weakSelf.cellBtnBlock(curMember);
+                        }
+                    }
+                }
+            }];
         }
     };
 
@@ -309,7 +338,7 @@
     }
     if (canDelete) {
         [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xF0F0F0"] icon:[UIImage imageNamed:@"member_cell_edit_type"]];
-        [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xff5846"] icon:[UIImage imageNamed:@"member_cell_edit_remove"]];
+        [rightUtilityButtons sw_addUtilityButtonWithColor:kColorBrandRed icon:[UIImage imageNamed:@"member_cell_edit_remove"]];
     }
     return rightUtilityButtons;
 }
@@ -332,7 +361,7 @@
     }else if (index == 1){//修改权限
         [self editTypeOfMember:mem];
     }else if (index == 2){//移除成员
-        [[UIActionSheet bk_actionSheetCustomWithTitle:@"移除该成员后，他将不再显示在项目中" buttonTitles:nil destructiveTitle:@"确认移除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        [[UIAlertController ea_actionSheetCustomWithTitle:@"移除该成员后，他将不再显示在项目中" buttonTitles:nil destructiveTitle:@"确认移除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [self removeMember:mem];
             }
@@ -372,6 +401,10 @@
 }
 
 - (void)editTypeOfMember:(ProjectMember *)curMember{
+    if (_myProject.is_public.boolValue) {
+        [NSObject showHudTipStr:@"公开项目不开放项目权限"];
+        return;
+    }
     __weak typeof(self) weakSelf = self;
     __weak typeof(curMember) weakMember = curMember;
     ValueListViewController *vc = [ValueListViewController new];
@@ -452,6 +485,16 @@
                                        modifier:NSDirectPredicateModifier
                                        type:NSContainsPredicateOperatorType
                                        options:NSCaseInsensitivePredicateOption];
+        [searchItemsPredicate addObject:finalPredicate];
+        //        pinyin
+        lhs = [NSExpression expressionForKeyPath:@"user.pinyinName"];
+        rhs = [NSExpression expressionForConstantValue:searchString];
+        finalPredicate = [NSComparisonPredicate
+                          predicateWithLeftExpression:lhs
+                          rightExpression:rhs
+                          modifier:NSDirectPredicateModifier
+                          type:NSContainsPredicateOperatorType
+                          options:NSCaseInsensitivePredicateOption];
         [searchItemsPredicate addObject:finalPredicate];
         // at this OR predicate to ourr master AND predicate
         NSCompoundPredicate *orMatchPredicates = (NSCompoundPredicate *)[NSCompoundPredicate orPredicateWithSubpredicates:searchItemsPredicate];

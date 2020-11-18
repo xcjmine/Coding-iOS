@@ -13,7 +13,7 @@
 
 #import "CodingShareView.h"
 #import "SMPageControl.h"
-#import <UMengSocial/UMSocial.h>
+#import <UMSocialCore/UMSocialCore.h>
 #import <evernote-cloud-sdk-ios/ENSDK/ENSDK.h>
 
 #import "PrivateMessage.h"
@@ -22,7 +22,7 @@
 #import "ReportIllegalViewController.h"
 
 
-@interface CodingShareView ()<UMSocialUIDelegate>
+@interface CodingShareView ()
 @property (strong, nonatomic) UIView *bgView;
 @property (strong, nonatomic) UIView *contentView;
 @property (strong, nonatomic) UILabel *titleL;
@@ -57,13 +57,13 @@
         }
         if (!_contentView) {
             _contentView = [UIView new];
-            _contentView.backgroundColor = [UIColor colorWithHexString:@"0xF0F0F0"];
+            _contentView.backgroundColor = kColorTableSectionBg;
             if (!_titleL) {
                 _titleL = ({
                     UILabel *label = [UILabel new];
                     label.textAlignment = NSTextAlignmentCenter;
                     label.font = [UIFont systemFontOfSize:14];
-                    label.textColor = [UIColor colorWithHexString:@"0x666666"];
+                    label.textColor = kColor666;
                     label;
                 });
                 [_contentView addSubview:_titleL];
@@ -82,7 +82,7 @@
                     button.titleLabel.font = [UIFont systemFontOfSize:15];
                     [button setTitle:@"取消" forState:UIControlStateNormal];
                     [button setTitleColor:[UIColor colorWithHexString:@"0x808080"] forState:UIControlStateNormal];
-                    [button setTitleColor:[UIColor colorWithHexString:@"0x3bbd79"] forState:UIControlStateHighlighted];
+                    [button setTitleColor:kColorBrandBlue forState:UIControlStateHighlighted];
                     [button addTarget:self action:@selector(p_dismiss) forControlEvents:UIControlEventTouchUpInside];
                     button;
                 });
@@ -196,7 +196,7 @@
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         snsNameDict = @{
-                        @"coding": @"Coding好友",
+                        @"coding": @"CODING 好友",
                         @"copylink": @"复制链接",
                         @"evernote": @"印象笔记",
                         @"sina": @"新浪微博",
@@ -246,6 +246,16 @@
 //        [resultSnsValues removeObjectsInArray:@[@"evernote"]];
 //    }
     return resultSnsValues;
+}
+
+- (UMSocialPlatformType)p_umPlatformTypeWithSnsName:(NSString *)snsName{
+    UMSocialPlatformType pT = ([snsName isEqualToString:@"wxsession"]? UMSocialPlatformType_WechatSession:
+                               [snsName isEqualToString:@"wxtimeline"]? UMSocialPlatformType_WechatTimeLine:
+                               [snsName isEqualToString:@"qq"]? UMSocialPlatformType_QQ:
+                               [snsName isEqualToString:@"qzone"]? UMSocialPlatformType_Qzone:
+                               [snsName isEqualToString:@"sina"]? UMSocialPlatformType_Sina:
+                               UMSocialPlatformType_UnKnown);
+    return pT;
 }
 
 +(BOOL)p_canOpen:(NSString*)url{
@@ -327,13 +337,17 @@
             [weakSelf p_willUploadENNote:note];
         }];
     }else{
-        [[UMSocialControllerService defaultControllerService] setSocialUIDelegate:self];
-        UMSocialSnsPlatform *snsPlatform = [UMSocialSnsPlatformManager getSocialPlatformWithName:snsName];
-        if (snsPlatform) {
-            snsPlatform.snsClickHandler([BaseViewController presentingVC],[UMSocialControllerService defaultControllerService],YES);
-        }
+        [[UMSocialManager defaultManager] shareToPlatform:[self p_umPlatformTypeWithSnsName:snsName] messageObject:[self p_curShareObjWithSocialPlatform:snsName] currentViewController:[BaseViewController presentingVC] completion:^(id data, NSError *error) {
+            if (!error) {
+                [NSObject showHudTipStr:@"分享成功"];
+            }else{
+                [NSObject showHudTipStr:@"分享失败"];
+                DebugLog(@"%@", error);
+            }
+        }];
     }
 }
+
 - (void)p_willUploadENNote:(ENNote *)noteToSave{
     if (!noteToSave) {
         [NSObject showHudTipStr:@"不支持保存到印象笔记"];
@@ -383,7 +397,7 @@
     }else if ([_objToShare isKindOfClass:[UIWebView class]]){
         linkStr = [(UIWebView *)_objToShare request].URL.absoluteString;
     }else{
-        linkStr = [NSObject baseURLStr];
+        linkStr = [NSString stringWithFormat:@"%@app#download", [NSObject baseURLStr]];
     }
     return linkStr;
 }
@@ -392,9 +406,9 @@
     if ([_objToShare isKindOfClass:[Tweet class]]) {
         title = [NSString stringWithFormat:@"%@ 的冒泡", [(Tweet *)_objToShare owner].name];
     }else if ([_objToShare isKindOfClass:[UIWebView class]]){
-        title = @"Coding 链接";
+        title = @"CODING 链接";
     }else{
-        title = @"Coding";
+        title = @"CODING - 让开发更简单";
     }
     return title;
 }
@@ -405,7 +419,12 @@
     }else if ([_objToShare isKindOfClass:[UIWebView class]]){
         text =[(UIWebView *)_objToShare stringByEvaluatingJavaScriptFromString:@"document.title"];
     }else{
-        text = @"Coding 让开发更简单！";
+        text = @"#Coding# 软件开发，云端协作";
+    }
+    NSInteger maxLength = 100;
+    if (text.length > maxLength) {
+        NSInteger location = maxLength - 3;
+        text = [text stringByReplacingCharactersInRange:NSMakeRange(location, text.length - location) withString:@"..."];
     }
     return text;
 }
@@ -429,17 +448,21 @@
     return imageUrl;
 }
 - (void)p_shareENNoteWithompletion:(ENNotePopulateFromWebViewCompletionHandler)completion{
-    if ([_objToShare respondsToSelector:NSSelectorFromString(@"htmlMedia")]) {
+    if ([_objToShare isKindOfClass:[UIWebView class]]){
+        [ENNote populateNoteFromWebView:(UIWebView *)_objToShare completion:completion];
+    }else{
         ENNote *note = [ENNote new];
         note.title = [self p_shareTitle];
         NSString *htmlStr;
-        HtmlMedia *htmlMedia = [_objToShare valueForKey:@"htmlMedia"];
-        htmlStr = htmlMedia.contentOrigional;
-        htmlStr = [htmlStr stringByAppendingFormat:@"<p><a href=\"%@\">原始链接</a></p>", [self p_shareLinkStr]];
+        if ([_objToShare respondsToSelector:NSSelectorFromString(@"htmlMedia")]) {
+            HtmlMedia *htmlMedia = [_objToShare valueForKey:@"htmlMedia"];
+            htmlStr = htmlMedia.contentOrigional;
+            htmlStr = [htmlStr stringByAppendingFormat:@"<p><a href=\"%@\">原始链接</a></p>", [self p_shareLinkStr]];
+        }else{
+            htmlStr = [self p_shareText];
+        }
         note.content = [ENNoteContent noteContentWithSanitizedHTML:htmlStr];
         completion(note);
-    }else if ([_objToShare isKindOfClass:[UIWebView class]]){
-        [ENNote populateNoteFromWebView:(UIWebView *)_objToShare completion:completion];
     }
 }
 #pragma mark TranspondMessage
@@ -464,75 +487,28 @@
     [ReportIllegalViewController showReportWithIllegalContent:[self p_shareLinkStr] andType:IllegalContentTypeWebsite];
 }
 
-#pragma mark UMSocialUIDelegate
--(void)didFinishGetUMSocialDataInViewController:(UMSocialResponseEntity *)response{
-    NSLog(@"didFinishGetUMSocialDataInViewController : %@",response);
-    if(response.responseCode == UMSResponseCodeSuccess){
-        NSString *snsName = [[response.data allKeys] firstObject];
-        NSLog(@"share to sns name is %@",snsName);
-        [NSObject performSelector:@selector(showStatusBarSuccessStr:) withObject:@"分享成功" afterDelay:0.3];
-    }else if (response.responseCode != UMSResponseCodeCancel){
-        NSString *snsName = [[response.data allKeys] firstObject];
-        NSString *errorTipStr = response.data[snsName][@"msg"];
-        [NSObject performSelector:@selector(showStatusBarErrorStr:) withObject:errorTipStr ?: @"分享失败" afterDelay:0.3];
-    }
-}
-
--(void)didSelectSocialPlatform:(NSString *)platformName withSocialData:(UMSocialData *)socialData{
-    //设置分享内容，和回调对象
-    {
-        socialData.shareText = [self p_shareText];
-        socialData.shareImage = [UIImage imageNamed:@"logo_about"];
-        NSString *imageUrl = [self p_imageUrlSquare:![platformName isEqualToString:@"sina"]];
-        socialData.urlResource.url = imageUrl;
-        socialData.urlResource.resourceType = imageUrl.length > 0? UMSocialUrlResourceTypeImage: UMSocialUrlResourceTypeDefault;
-    }
-    if ([platformName isEqualToString:@"wxsession"]) {
-        UMSocialWechatSessionData *wechatSessionData = [UMSocialWechatSessionData new];
-        wechatSessionData.title = [self p_shareTitle];
-        wechatSessionData.url = [self p_shareLinkStr];
-        wechatSessionData.wxMessageType = UMSocialWXMessageTypeWeb;
-        socialData.extConfig.wechatSessionData = wechatSessionData;
-    }else if ([platformName isEqualToString:@"wxtimeline"]){
-        UMSocialWechatTimelineData *wechatTimelineData = [UMSocialWechatTimelineData new];
-        wechatTimelineData.shareText = [NSString stringWithFormat:@"「%@」%@", [self p_shareTitle], [self p_shareText]];
-        wechatTimelineData.url = [self p_shareLinkStr];
-        wechatTimelineData.wxMessageType = UMSocialWXMessageTypeWeb;
-        socialData.extConfig.wechatTimelineData = wechatTimelineData;
-    }else if ([platformName isEqualToString:@"qq"]){
-        UMSocialQQData *qqData = [UMSocialQQData new];
-        qqData.title = [self p_shareTitle];
-        qqData.url = [self p_shareLinkStr];
-        qqData.qqMessageType = UMSocialQQMessageTypeDefault;
-        socialData.extConfig.qqData = qqData;
-    }else if ([platformName isEqualToString:@"qzone"]){
-        UMSocialQzoneData *qzoneData = [UMSocialQzoneData new];
-        qzoneData.title = [self p_shareTitle];
-        qzoneData.url = [self p_shareLinkStr];
-        socialData.extConfig.qzoneData = qzoneData;
+- (UMSocialMessageObject *)p_curShareObjWithSocialPlatform:(NSString *)platformName{
+    UMSocialMessageObject *messageObject = [UMSocialMessageObject messageObject];
+    UMShareWebpageObject *shareObject = [UMShareWebpageObject shareObjectWithTitle:[self p_shareTitle] descr:[self p_shareText] thumImage:[self p_imageUrlSquare:![platformName isEqualToString:@"sina"]] ?: [UIImage imageNamed:@"logo_about"]];
+    shareObject.webpageUrl = [self p_shareLinkStr];
+    if ([platformName isEqualToString:@"wxtimeline"]){
+        shareObject.title = [NSString stringWithFormat:@"「%@」%@", [self p_shareTitle], [self p_shareText]];
     }else if ([platformName isEqualToString:@"sina"]){
         NSString *shareTitle, *shareText, *shareTail;
         shareTitle = [NSString stringWithFormat:@"「%@」", [self p_shareTitle]];
         shareText = [self p_shareText];
-        shareTail = [NSString stringWithFormat:@"%@（分享自@Coding）", [self p_shareLinkStr]];
+        shareTail = @"（分享自@Coding）";
         NSInteger maxShareLength = 140;
         NSInteger maxTextLength = maxShareLength - shareTitle.length - shareTail.length;
         if (shareText.length > maxTextLength) {
             shareText = [shareText stringByReplacingCharactersInRange:NSMakeRange(maxTextLength - 3, shareText.length - (maxTextLength - 3)) withString:@"..."];
         }
         NSString *shareContent = [NSString stringWithFormat:@"%@%@ %@", shareTitle, shareText, shareTail];
-
-        socialData.shareText = shareContent;
-        socialData.shareImage = nil;
+        shareObject.title = shareContent;
     }
-
-    NSLog(@"%@ : %@", platformName, socialData);
+    messageObject.shareObject = shareObject;
+    return messageObject;
 }
-
--(BOOL)isDirectShareInIconActionSheet{
-    return YES;
-}
-
 @end
 
 @interface CodingShareView_Item ()
@@ -560,7 +536,7 @@
             UILabel *label = [UILabel new];
             label.textAlignment = NSTextAlignmentCenter;
             label.font = [UIFont systemFontOfSize:12];
-            label.textColor = [UIColor colorWithHexString:@"0x666666"];
+            label.textColor = kColor666;
             label;
         });
         [self addSubview:_titleL];

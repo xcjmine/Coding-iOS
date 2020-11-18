@@ -18,7 +18,7 @@
 @property (copy, nonatomic) ProjectTaskBlock block;
 @property (strong, nonatomic) UITableView *myTableView;
 @property (strong, nonatomic) ODRefreshControl *myRefreshControl;
-
+@property (nonatomic, assign) NSInteger page;
 @end
 
 @implementation ProjectTaskListView
@@ -39,12 +39,21 @@
     }
 }
 
-- (id)initWithFrame:(CGRect)frame tasks:(Tasks *)tasks block:(ProjectTaskBlock)block tabBarHeight:(CGFloat)tabBarHeight{
+- (id)initWithFrame:(CGRect)frame tasks:(Tasks *)tasks project_id:(NSString *)project_id keyword:(NSString *)keyword status:(NSString *)status label:(NSString *)label userId:(NSString *)userId role:(TaskRoleType )role block:(ProjectTaskBlock)block tabBarHeight:(CGFloat)tabBarHeight{
     self = [super initWithFrame:frame];
     if (self) {
         // Initialization code
         _myTasks = tasks;
         _block = block;
+        _page = 1;
+        
+        self.project_id = project_id;
+        self.keyword = keyword;
+        self.status = status;
+        self.label = label;
+        self.userId = userId;
+        self.role = role;
+
         
         _myTableView = ({
             UITableView *tableView = [[UITableView alloc] initWithFrame:self.bounds style:UITableViewStylePlain];
@@ -62,6 +71,9 @@
                 tableView.contentInset = insets;
                 tableView.scrollIndicatorInsets = insets;
             }
+            tableView.estimatedRowHeight = 0;
+            tableView.estimatedSectionHeaderHeight = 0;
+            tableView.estimatedSectionFooterHeight = 0;
             tableView;
         });
         
@@ -82,6 +94,8 @@
 
 - (void)setTasks:(Tasks *)tasks{
     if (_myTasks != tasks) {
+        self.userId = tasks.owner.id.stringValue;
+        self.project_id = tasks.project.id.stringValue;
         self.myTasks = tasks;
         [_myTableView reloadData];
         [_myTableView.infiniteScrollingView stopAnimating];
@@ -106,6 +120,7 @@
     if (_myTasks.isLoading) {
         return;
     }
+    _page = 1;
     _myTasks.willLoadMore = NO;
     [self sendRequest];
 }
@@ -115,6 +130,7 @@
         [_myTableView.infiniteScrollingView stopAnimating];
         return;
     }
+    _page++;
     _myTasks.willLoadMore = YES;
     [self sendRequest];
 }
@@ -124,7 +140,8 @@
         [self beginLoading];
     }
     __weak typeof(self) weakSelf = self;
-    [[Coding_NetAPIManager sharedManager] request_ProjectTaskList_WithObj:_myTasks andBlock:^(Tasks *data, NSError *error) {
+    
+    [[Coding_NetAPIManager sharedManager] request_tasks_searchWithUserId:_userId role:_role project_id:_project_id keyword:_keyword status:_status label:_label page:_page andBlock:^(Tasks *data, NSError *error) {
         [weakSelf endLoading];
         [weakSelf.myRefreshControl endRefreshing];
         [weakSelf.myTableView.infiniteScrollingView stopAnimating];
@@ -136,6 +153,7 @@
         [weakSelf configBlankPage:EaseBlankPageTypeTask hasData:(weakSelf.myTasks.list.count > 0) hasError:(error != nil) reloadButtonBlock:^(id sender) {
             [weakSelf refresh];
         }];
+               
     }];
 }
 
@@ -223,22 +241,13 @@
 
 #pragma mark TableViewHeader
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section{
-    return kScaleFrom_iPhone5_Desgin(24);
+    return 15;
 }
 
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section{
-    NSString *headerStr;
-    if (section == 0) {
-        if (_myTasks.processingList.count > 0) {
-            headerStr = @"进行中的任务";
-        }else{
-            headerStr = @"已完成的任务";
-        }
-    }else{
-        headerStr = @"已完成的任务";
-    }
-    return [tableView getHeaderViewWithStr:headerStr andBlock:^(id obj) {
-    }];
+    UIView *headerV = [UIView new];
+    headerV.backgroundColor = kColorTableSectionBg;
+    return headerV;
 }
 
 @end

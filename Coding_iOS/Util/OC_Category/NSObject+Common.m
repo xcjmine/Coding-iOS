@@ -7,15 +7,21 @@
 //
 #define kPath_ImageCache @"ImageCache"
 #define kPath_ResponseCache @"ResponseCache"
-#define kTestKey @"BaseURLIsTest"
 #define kHUDQueryViewTag 101
+
+#define kBaseURLStr @"https://coding.net/"
+#define kBaseCompanySuffixStr @"coding.net"
+#define kBaseCompanyKey @"k_base_company"
+
+#define kIsPrivateCloudKey @"k_is_private_cloud"
+#define kPrivateCloudKey @"k_private_cloud"
 
 #import "NSObject+Common.h"
 #import "JDStatusBarNotification.h"
 #import "Login.h"
 #import "AppDelegate.h"
-#import "MBProgressHUD+Add.h"
 #import "CodingNetAPIClient.h"
+#import "Coding_NetAPIManager.h"
 
 @implementation NSObject (Common)
 
@@ -37,10 +43,16 @@
                 }
             }
         }else{
-            if ([error.userInfo objectForKey:@"NSLocalizedDescription"]) {
-                tipStr = [error.userInfo objectForKey:@"NSLocalizedDescription"];
+            if (error.userInfo[NSUnderlyingErrorKey]) {
+                tipStr = [self tipFromError:error.userInfo[NSUnderlyingErrorKey]].mutableCopy;
+            }else if (error.userInfo[NSLocalizedDescriptionKey]) {
+                tipStr = error.userInfo[NSLocalizedDescriptionKey];
             }else{
-                [tipStr appendFormat:@"ErrorCode%ld", (long)error.code];
+                if (error.code == 3840) {//Json 解析失败
+                    [tipStr appendFormat:@"服务器返回数据格式有误"];
+                }else{
+                    [tipStr appendFormat:@"错误代码 %ld", (long)error.code];
+                }
             }
         }
         return tipStr;
@@ -67,7 +79,7 @@
         [hud hide:YES afterDelay:1.0];
     }
 }
-+ (instancetype)showHUDQueryStr:(NSString *)titleStr{
++ (MBProgressHUD *)showHUDQueryStr:(NSString *)titleStr{
     titleStr = titleStr.length > 0? titleStr: @"正在获取数据...";
     MBProgressHUD *hud = [MBProgressHUD showHUDAddedTo:kKeyWindow animated:YES];
     hud.tag = kHUDQueryViewTag;
@@ -121,38 +133,123 @@
 
 #pragma mark BaseURL
 + (NSString *)baseURLStr{
-    NSString *baseURLStr;
-    if ([self baseURLStrIsTest]) {
-        //staging
-        baseURLStr = kBaseUrlStr_Test;
+    if (kTarget_Enterprise) {
+        if ([self isPrivateCloud].boolValue) {
+            return [self privateCloud];
+        }else{
+            if (![self baseCompany]) {
+                return nil;
+            }
+            NSString *baseURLStr = [NSString stringWithFormat:@"%@://%@.%@/", ([self baseURLStrIsProduction]? @"https": @"http"), [self baseCompany], [self baseCompanySuffixStr]];
+            return baseURLStr;
+        }
     }else{
-        //生产
-        baseURLStr = @"https://coding.net/";
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        return [defaults valueForKey:kBaseURLStr] ?: kBaseURLStr;
     }
-//    //staging
-//    baseURLStr = kBaseUrlStr_Test;
-//    //村民
-//    baseURLStr = @"http://192.168.0.188:8080/";
-//    //彭博
-//    baseURLStr = @"http://192.168.0.156:9990/";
-//    //小胖
-//    baseURLStr = @"http://192.168.0.222:8080/";
-
-    return baseURLStr;
 }
 
-+ (BOOL)baseURLStrIsTest{
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    return [[defaults valueForKey:kTestKey] boolValue];
++ (BOOL)baseURLStrIsProduction{
+    if (kTarget_Enterprise) {
+        return [[self baseCompanySuffixStr] isEqualToString:kBaseCompanySuffixStr];
+    }else{
+        return [[self baseURLStr] isEqualToString:kBaseURLStr];
+    }
 }
-+ (void)changeBaseURLStrToTest:(BOOL)isTest{
+
++ (void)changeBaseURLStrTo:(NSString *)baseURLStr{
+    if (baseURLStr.length <= 0) {
+        baseURLStr = kBaseURLStr;
+    }else if (![baseURLStr hasSuffix:@"/"]){
+        baseURLStr = [baseURLStr stringByAppendingString:@"/"];
+    }
+
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    [defaults setObject:@(isTest) forKey:kTestKey];
+    [defaults setObject:baseURLStr forKey:kBaseURLStr];
     [defaults synchronize];
     
     [CodingNetAPIClient changeJsonClient];
     
-    [[UINavigationBar appearance] setBackgroundImage: [UIImage imageWithColor:[UIColor colorWithHexString:isTest?@"0x3bbd79": @"0x28303b"]] forBarMetrics:UIBarMetricsDefault];
+    [[UINavigationBar appearance] setBackgroundImage:[UIImage imageWithColor:[self baseURLStrIsProduction]? kColorNavBG: kColorActionYellow] forBarMetrics:UIBarMetricsDefault];
+}
+
++ (NSString *)e_URLStr{
+    NSString *baseURLStr = [NSString stringWithFormat:@"%@://e.%@/", ([self baseURLStrIsProduction]? @"https": @"http"), [self baseCompanySuffixStr]];
+    return [self isPrivateCloud].boolValue? [self privateCloud]: baseURLStr;
+}
+
++ (NSString *)baseCompanySuffixStr{
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *baseCompanySuffixStr = [defaults valueForKey:kBaseCompanySuffixStr] ?: kBaseCompanySuffixStr;
+    return [baseCompanySuffixStr lowercaseString];
+}
++ (void)changeBaseCompanySuffixStrTo:(NSString *)companySuffixStr{
+    if (companySuffixStr.length <= 0) {
+        companySuffixStr = kBaseCompanySuffixStr;
+    }
+    if (![companySuffixStr isEqualToString:[self baseCompanySuffixStr]]) {
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        [defaults setObject:companySuffixStr forKey:kBaseCompanySuffixStr];
+        [defaults synchronize];
+        
+        [[UINavigationBar appearance] setBackgroundImage:[UIImage imageWithColor:[self baseURLStrIsProduction]? kColorNavBG: kColorBrandBlue] forBarMetrics:UIBarMetricsDefault];
+        
+        if ([self baseCompany]) {
+            [CodingNetAPIClient changeSharedJsonClient];
+        }
+        [CodingNetAPIClient changeE_JsonClient];
+    }
+}
+
++ (NSString *)baseCompany{
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *baseCompany = [defaults valueForKey:kBaseCompanyKey];
+    return [self isPrivateCloud].boolValue? @"ce": baseCompany;
+}
++ (void)changeBaseCompanyTo:(NSString *)company{
+    if ([self isPrivateCloud].boolValue) {
+        [self changePrivateCloudTo:company];
+    }else if (![company isEqualToString:[self baseCompany]]) {
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        [defaults setObject:company ?: @"" forKey:kBaseCompanyKey];
+        [defaults synchronize];
+        
+        [CodingNetAPIClient changeSharedJsonClient];
+    }
+}
+
++ (NSNumber *)isPrivateCloud{
+    //    return @(YES);
+    return [[NSUserDefaults standardUserDefaults] valueForKey:kIsPrivateCloudKey];
+}
++ (void)setupIsPrivateCloud:(NSNumber *)isPrivateCloud{
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if (isPrivateCloud) {
+        [defaults setObject:isPrivateCloud forKey:kIsPrivateCloudKey];
+    }else{
+        [defaults removeObjectForKey:kIsPrivateCloudKey];
+    }
+    [defaults synchronize];
+    [CodingNetAPIClient changeSharedJsonClient];
+}
++ (NSString *)privateCloud{
+    //    return @"http://pd.codingprod.net/";
+    return [[NSUserDefaults standardUserDefaults] valueForKey:kPrivateCloudKey];
+}
++ (void)changePrivateCloudTo:(NSString *)privateCloud{
+    if (privateCloud.length > 0) {
+        if (![privateCloud hasPrefix:@"http"]) {
+            privateCloud = [NSString stringWithFormat:@"http://%@", privateCloud];
+        }
+        if (![privateCloud hasSuffix:@"/"]) {
+            privateCloud = [privateCloud stringByAppendingString:@"/"];
+        }
+    }
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setObject:privateCloud ?: @"" forKey:kPrivateCloudKey];
+    [defaults synchronize];
+    
+    [CodingNetAPIClient changeSharedJsonClient];
 }
 
 #pragma mark File M
@@ -200,7 +297,7 @@
         bool isSaved = false;
         if ( isDir == YES && existed == YES )
         {
-            isSaved = [UIImageJPEGRepresentation(image, 1.0) writeToFile:[directoryPath stringByAppendingPathComponent:imageName] options:NSAtomicWrite error:nil];
+            isSaved = [[image dataForCodingUpload] writeToFile:[directoryPath stringByAppendingPathComponent:imageName] options:NSAtomicWrite error:nil];
         }
         return isSaved;
     }else{
@@ -288,6 +385,19 @@
     return [self deleteCacheWithPath:kPath_ResponseCache];
 }
 
++ (NSUInteger)getResponseCacheSize {
+    NSString *dirPath = [self pathInCacheDirectory:kPath_ResponseCache];
+    NSUInteger size = 0;
+    NSDirectoryEnumerator *fileEnumerator = [[NSFileManager defaultManager] enumeratorAtPath:dirPath];
+    for (NSString *fileName in fileEnumerator) {
+        NSString *filePath = [dirPath stringByAppendingPathComponent:fileName];
+        NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:nil];
+        size += [attrs fileSize];
+    }
+    return size;
+}
+
+
 + (BOOL) deleteCacheWithPath:(NSString *)cachePath{
     NSString *dirPath = [self pathInCacheDirectory:cachePath];
     BOOL isDir = NO;
@@ -308,12 +418,11 @@
 -(id)handleResponse:(id)responseJSON autoShowError:(BOOL)autoShowError{
     NSError *error = nil;
     //code为非0值时，表示有错
-    NSNumber *resultCode = [responseJSON valueForKeyPath:@"code"];
+    NSInteger errorCode = [(NSNumber *)[responseJSON valueForKeyPath:@"code"] integerValue];
     
-    if (resultCode.intValue != 0) {
-        error = [NSError errorWithDomain:[NSObject baseURLStr] code:resultCode.intValue userInfo:responseJSON];
-
-        if (resultCode.intValue == 1000 || resultCode.intValue == 3207) {//用户未登录
+    if (errorCode != 0) {
+        error = [NSError errorWithDomain:[NSObject baseURLStr] code:errorCode userInfo:responseJSON];
+        if (errorCode == 1000 || errorCode == 3207) {//用户未登录
             if ([Login isLogin]) {
                 [Login doLogout];//已登录的状态要抹掉
                 //更新 UI 要延迟 >1.0 秒，否则屏幕可能会不响应触摸事件。。暂不知为何
@@ -323,6 +432,17 @@
                 });
             }
         }else{
+            //验证码弹窗
+            NSMutableDictionary *params = nil;
+            if (errorCode == 907) {//operation_need_captcha 比如：每日新增关注用户超过 20 个
+                params = @{@"type": @3}.mutableCopy;
+            }else if (errorCode == 1018){//user_not_get_request_too_many
+                params = @{@"type": @1}.mutableCopy;
+            }
+            if (params) {
+                [NSObject showCaptchaViewParams:params];
+            }
+            //错误提示
             if (autoShowError) {
                 [NSObject showError:error];
             }
@@ -330,4 +450,101 @@
     }
     return error;
 }
+
++ (void)showCaptchaViewParams:(NSMutableDictionary *)params{
+    [self showCaptchaViewParams:params success:nil];
+}
+
++ (void)showCaptchaViewParams:(NSMutableDictionary *)params success:(void (^)())block{
+    //Data
+    if (!params) {
+        params = @{}.mutableCopy;
+    }
+    if (!params[@"type"]) {
+        params[@"type"] = @1;
+    }
+    NSString *path = @"api/request_valid";
+    NSURL *imageURL = [NSURL URLWithString:[NSString stringWithFormat:@"%@api/getCaptcha?type=%@", [NSObject baseURLStr], params[@"type"]]];
+    //UI
+    SDCAlertController *alertV = [SDCAlertController alertControllerWithTitle:@"提示" message:@"请输入图片验证码" preferredStyle:SDCAlertControllerStyleAlert];
+    UITextField *textF = [UITextField new];
+    textF.layer.sublayerTransform = CATransform3DMakeTranslation(5, 0, 0);
+    textF.backgroundColor = [UIColor whiteColor];
+    [textF doBorderWidth:0.5 color:nil cornerRadius:2.0];
+    UIImageView *imageV = [YLImageView new];
+    imageV.backgroundColor = [UIColor lightGrayColor];
+    imageV.contentMode = UIViewContentModeScaleAspectFit;
+    imageV.clipsToBounds = YES;
+    imageV.userInteractionEnabled = YES;
+    [textF doBorderWidth:0.5 color:nil cornerRadius:2.0];
+    [imageV sd_setImageWithURL:imageURL placeholderImage:nil options:(SDWebImageRetryFailed | SDWebImageRefreshCached | SDWebImageHandleCookies)];
+    
+    [alertV.contentView addSubview:textF];
+    [alertV.contentView addSubview:imageV];
+    [textF mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.left.equalTo(alertV.contentView).offset(15);
+        make.height.mas_equalTo(25);
+        make.bottom.equalTo(alertV.contentView).offset(-10);
+    }];
+    [imageV mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.right.equalTo(alertV.contentView).offset(-15);
+        make.left.equalTo(textF.mas_right).offset(10);
+        make.width.mas_equalTo(60);
+        make.height.mas_equalTo(25);
+        make.centerY.equalTo(textF);
+    }];
+    //Action
+    __weak typeof(imageV) weakImageV = imageV;
+    [imageV bk_whenTapped:^{
+        [weakImageV sd_setImageWithURL:imageURL placeholderImage:nil options:(SDWebImageRetryFailed | SDWebImageRefreshCached | SDWebImageHandleCookies)];
+    }];
+    __weak typeof(alertV) weakAlertV = alertV;
+    [alertV addAction:[SDCAlertAction actionWithTitle:@"取消" style:SDCAlertActionStyleCancel handler:nil]];
+    [alertV addAction:[SDCAlertAction actionWithTitle:@"确定" style:SDCAlertActionStyleDefault handler:nil]];
+    alertV.shouldDismissBlock =  ^BOOL (SDCAlertAction *action){
+        BOOL shouldDismiss = [action.title isEqualToString:@"取消"];
+        if (!shouldDismiss) {
+            params[@"j_captcha"] = textF.text;
+            [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:path withParams:params withMethodType:Post andBlock:^(id data, NSError *error) {
+                if (data) {
+                    [weakAlertV dismissWithCompletion:^{
+                        if (block) {
+                            block();
+                        }else{
+                            [NSObject showHudTipStr:@"验证码正确"];
+                        }
+                    }];
+                }else{
+                    [weakImageV sd_setImageWithURL:imageURL placeholderImage:nil options:(SDWebImageRetryFailed | SDWebImageRefreshCached | SDWebImageHandleCookies)];
+                }
+            }];
+        }
+        return shouldDismiss;
+    };
+    [alertV presentWithCompletion:^{
+        [textF becomeFirstResponder];
+    }];
+}
+
+
+#pragma Other
++ (void)logCookies{
+    NSArray *cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies];
+    [cookies enumerateObjectsUsingBlock:^(NSHTTPCookie *  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        NSLog(@"cookie: %@", obj.description);
+    }];
+}
+
++ (void)preCookieHandle{
+    NSHTTPCookieStorage *storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+    NSHTTPCookie *cookie = [NSHTTPCookie cookieWithProperties:@{NSHTTPCookieName: @"e_dev",
+                                                                NSHTTPCookieValue: @"1",
+                                                                NSHTTPCookieDomain: @".coding.net",
+                                                                NSHTTPCookieOriginURL: @".coding.net",
+                                                                NSHTTPCookiePath: @"/"}];
+    [storage setCookie:cookie];
+    
+    //    [self logCookies];
+}
+
 @end

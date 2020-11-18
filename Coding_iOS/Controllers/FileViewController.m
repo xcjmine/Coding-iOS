@@ -35,6 +35,7 @@
 @property (strong, nonatomic) UIActivityIndicatorView *activityIndicator;
 @property (nonatomic, strong) EaseToolBar *myToolBar;
 
+@property (strong, nonatomic) NSProgress *progress;
 @end
 
 @implementation FileViewController
@@ -49,22 +50,22 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     // Do any additional setup after loading the view.
+    self.title = [self titleStr];
 }
 
-- (void)viewWillAppear:(BOOL)animated{
-    [super viewWillAppear:animated];
-    self.title = [self titleStr];
+- (void)viewDidAppear:(BOOL)animated{
+    [super viewDidAppear:animated];
     if ([self.curFile isEmpty]) {
         [self requestFileData];
-    }else{
+    }else if (!self.view.loadingView || self.view.loadingView.hidden){
         [self configContent];
     }
 }
 
 - (EaseToolBar *)myToolBar{
     if (!_myToolBar) {
-        EaseToolBarItem *item1 = [EaseToolBarItem easeToolBarItemWithTitle:@" 文件动态" image:@"button_file_activity" disableImage:nil];
-        EaseToolBarItem *item2 = [EaseToolBarItem easeToolBarItemWithTitle:@" 历史版本" image:@"button_file_history" disableImage:nil];
+        EaseToolBarItem *item1 = [EaseToolBarItem easeToolBarItemWithTitle:@"文件动态" image:@"button_file_activity" disableImage:nil];
+        EaseToolBarItem *item2 = [EaseToolBarItem easeToolBarItemWithTitle:@"历史版本" image:@"button_file_history" disableImage:nil];
         _myToolBar = [EaseToolBar easeToolBarWithItems:@[item1, item2]];
         _myToolBar.delegate = self;
         [self.view addSubview:_myToolBar];
@@ -72,17 +73,6 @@
             make.bottom.equalTo(self.view.mas_bottom);
             make.size.mas_equalTo(_myToolBar.frame.size);
         }];
-    }
-    if (_myToolBar) {
-        FunctionTipsManager *ftM = [FunctionTipsManager shareManager];
-        if ([ftM needToTip:kFunctionTipStr_File_2V_Activity]) {
-            EaseToolBarItem *item = [_myToolBar itemOfIndex:0];
-            [item addTipIcon];
-        }
-        if ([ftM needToTip:kFunctionTipStr_File_2V_Version]) {
-            EaseToolBarItem *item = [_myToolBar itemOfIndex:1];
-            [item addTipIcon];
-        }
     }
     return _myToolBar;
 }
@@ -92,7 +82,7 @@
     __weak typeof(self) weakSelf = self;
     [[Coding_NetAPIManager sharedManager] request_FileDetail:self.curFile andBlock:^(id data, NSError *error) {
         [weakSelf.view endLoading];
-
+        
         if (data) {
             weakSelf.curFile = data;
             [weakSelf configContent];
@@ -111,21 +101,22 @@
 - (void)configContent{
     self.title = [self titleStr];
     [self setupNavigationItem];
-
-    NSURL *fileUrl = [self hasBeenDownload];
+    
+    NSURL *fileUrl = [self diskFileUrl];
     if (!fileUrl) {
-        [self showDownloadView];
+        if ([self p_isTextContent]){
+            [self p_startDownload];
+        }else{
+            [self showDownloadView];
+        }
     }else{
         self.fileUrl = fileUrl;
         [self setupDocumentControllerWithURL:fileUrl];
-        if ([self.fileType isEqualToString:@"md"]
-            || [self.fileType isEqualToString:@"html"]
-            || [self.fileType isEqualToString:@"txt"]
-            || [self.fileType isEqualToString:@"plist"]){
+        if ([self p_isTextContent]){
             [self loadWebView:fileUrl];
         }else if ([QLPreviewController canPreviewItem:fileUrl]) {
             [self showDiskFile:fileUrl];
-        }else {
+        }else if (!_downloadView || _downloadView.hidden) {
             [self showDownloadView];
         }
     }
@@ -143,6 +134,10 @@
         QLPreviewController* preview = [[QLPreviewController alloc] init];
         preview.dataSource = self;
         preview.delegate = self;
+        if ([[[UIDevice currentDevice] systemVersion] compare:@"10.0" options:NSNumericSearch] != NSOrderedAscending) {
+            [self addChildViewController:preview];
+            [preview didMoveToParentViewController:self];
+        }
         [self.view addSubview:preview.view];
         [preview.view mas_makeConstraints:^(MASConstraintMaker *make) {
             make.top.left.right.equalTo(self.view);
@@ -208,18 +203,19 @@
             make.bottom.equalTo(self.view).offset(-[self toolBarHeight]);
         }];
     }
-    
-    self.downloadView.file = self.curFile;
-    self.downloadView.version = self.curVersion;
-    [self.downloadView reloadData];
-    
     __weak typeof(self) weakSelf = self;
-    self.downloadView.completionBlock = ^(){
-        [weakSelf configContent];
-    };
+    if ([self.downloadView downloadState] == DownloadStateDownloaded) {
+        self.downloadView.completionBlock = nil;
+    }else{
+        self.downloadView.completionBlock = ^(){
+            [weakSelf configContent];
+        };
+    }
     self.downloadView.otherMethodOpenBlock = ^(){
         [weakSelf openByOtherApp];
     };
+    [self.downloadView setFile:self.curFile version:self.curVersion];
+    [self.downloadView reloadData];
     self.downloadView.hidden = NO;
 }
 
@@ -248,15 +244,15 @@
         if ([KxMenu isShowingInView:self.view]) {
             [KxMenu dismissMenu:YES];
         }else{
-            [KxMenu setTitleFont:[UIFont systemFontOfSize:14]];
+            [KxMenu setTitleFont:[UIFont systemFontOfSize:15]];
             [KxMenu setTintColor:[UIColor whiteColor]];
-            [KxMenu setLineColor:[UIColor colorWithHexString:@"0xdddddd"]];
+            [KxMenu setLineColor:kColorDDD];
             
             NSMutableArray *menuItems = [@[
-                                          [KxMenuItem menuItem:@"共享链接" image:[UIImage imageNamed:@"file_menu_icon_share"] target:self action:@selector(goToShareFileLink)],
-                                          [KxMenuItem menuItem:@"文件信息" image:[UIImage imageNamed:@"file_menu_icon_info"] target:self action:@selector(goToFileInfo)],
-                                          [KxMenuItem menuItem:@"删除文件" image:[UIImage imageNamed:@"file_menu_icon_delete"] target:self action:@selector(deleteCurFile)],
-                                          ] mutableCopy];
+                                           [KxMenuItem menuItem:@"共享链接" image:[UIImage imageNamed:@"file_menu_icon_share"] target:self action:@selector(goToShareFileLink)],
+                                           [KxMenuItem menuItem:@"文件信息" image:[UIImage imageNamed:@"file_menu_icon_info"] target:self action:@selector(goToFileInfo)],
+                                           [KxMenuItem menuItem:@"删除文件" image:[UIImage imageNamed:@"file_menu_icon_delete"] target:self action:@selector(deleteCurFile)],
+                                           ] mutableCopy];
             if ([self fileCanEdit]) {
                 [menuItems insertObject:[KxMenuItem menuItem:@"编辑文件" image:[UIImage imageNamed:@"file_menu_icon_edit"] target:self action:@selector(goToEditFile)]
                                 atIndex:0];
@@ -267,15 +263,15 @@
             if (self.fileUrl) {
                 [menuItems addObject:[KxMenuItem menuItem:@"其它应用打开" image:[UIImage imageNamed:@"file_menu_icon_open"] target:self action:@selector(openByOtherApp)]];
             }
-            [menuItems setValue:[UIColor colorWithHexString:@"0x222222"] forKey:@"foreColor"];
-            CGRect senderFrame = CGRectMake(kScreen_Width - (kDevice_Is_iPhone6Plus? 30: 26), 0, 0, 0);
+            [menuItems setValue:kColorDark4 forKey:@"foreColor"];
+            CGRect senderFrame = CGRectMake(kScreen_Width - (kDevice_Is_iPhone6Plus? 30: 26), 5, 0, 0);
             [KxMenu showMenuInView:self.view
                           fromRect:senderFrame
                          menuItems:menuItems];
         }
     }else{
         if (self.preview.length > 0) {
-            UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:nil buttonTitles:@[@"保存到相册", @"用其他应用打开"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+            UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:nil buttonTitles:@[@"保存到相册", @"用其他应用打开"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
                 switch (index) {
                     case 0:
                         [weakSelf saveCurImg];
@@ -295,6 +291,8 @@
 }
 
 - (void)goToEditFile{
+    [MobClick event:kUmeng_Event_File label:@"文件_点击编辑"];
+    
     __weak typeof(self) weakSelf = self;
     FileEditViewController *vc = [FileEditViewController new];
     vc.curFile = _curFile;
@@ -309,9 +307,9 @@
 
 - (void)goToShareFileLink{
     __weak typeof(self) weakSelf = self;
-    UIActionSheet *actionSheet;
-    if (_curFile.share_url.length > 0) {
-        actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"该链接适用于所有人，无需登录" buttonTitles:@[@"拷贝链接", @"关闭共享"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+    UIAlertController *actionSheet;
+    if (_curFile.share) {
+        actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"该链接适用于所有人，无需登录" buttonTitles:@[@"拷贝链接"] destructiveTitle:@"关闭共享" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [weakSelf doCopyShareUrl];
             }else if (index == 1) {
@@ -319,7 +317,7 @@
             }
         }];
     }else{
-        actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"当前未开启共享，请先创建公开链接" buttonTitles:@[@"开启共享并拷贝链接"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"当前未开启共享，请先创建公开链接" buttonTitles:@[@"开启共享并拷贝链接"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [weakSelf doOpenAndCopyShareUrl];
             }
@@ -329,8 +327,8 @@
 }
 
 - (void)doCopyShareUrl{
-    if (_curFile.share_url.length > 0) {
-        [[UIPasteboard generalPasteboard] setString:_curFile.share_url];
+    if (_curFile.share) {
+        [[UIPasteboard generalPasteboard] setString:_curFile.share.url];
         [NSObject showHudTipStr:@"链接已拷贝到粘贴板"];
     }else{
         [NSObject showHudTipStr:@"文件还未打开共享"];
@@ -341,18 +339,18 @@
     __weak typeof(self) weakSelf = self;
     [[Coding_NetAPIManager sharedManager] request_OpenShareOfFile:_curFile andBlock:^(id data, NSError *error) {
         if (data) {
-            weakSelf.curFile.share_url = data;
+            weakSelf.curFile.share = [FileShare instanceWithUrl:data];
             [weakSelf doCopyShareUrl];
         }
     }];
 }
 
 - (void)doCloseShareUrl{
-    NSString *hashStr = [[_curFile.share_url componentsSeparatedByString:@"/"] lastObject];
+    NSString *hashStr = [[_curFile.share.url componentsSeparatedByString:@"/"] lastObject];
     __weak typeof(self) weakSelf = self;
-    [[Coding_NetAPIManager sharedManager] request_CloseShareHash:hashStr andBlock:^(id data, NSError *error) {
+    [[Coding_NetAPIManager sharedManager] request_CloseFileShareHash:hashStr andBlock:^(id data, NSError *error) {
         if (data) {
-            weakSelf.curFile.share_url = nil;
+            weakSelf.curFile.share = nil;
             [NSObject showHudTipStr:@"共享链接已关闭"];
         }
     }];
@@ -365,12 +363,12 @@
 }
 
 - (void)deleteCurFile{
-    UIActionSheet *actionSheet;
-    NSURL *fileUrl = [_curFile hasBeenDownload];
+    UIAlertController *actionSheet;
+    NSURL *fileUrl = [_curFile diskFileUrl];
     Coding_DownloadTask *cDownloadTask = [_curFile cDownloadTask];
-
+    
     if (fileUrl) {
-        actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"只是删除本地文件还是连同服务器文件一起删除？" buttonTitles:@[@"仅删除本地文件"] destructiveTitle:@"一起删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"只是删除本地文件还是连同服务器文件一起删除？" buttonTitles:@[@"仅删除本地文件"] destructiveTitle:@"一起删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             switch (index) {
                 case 0:
                     [self doDeleteCurFile:self.curFile fromDisk:YES];
@@ -383,7 +381,7 @@
             }
         }];
     }else if (cDownloadTask){
-        actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"确定将服务器上的该文件删除？" buttonTitles:@[@"只是取消下载"] destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"确定将服务器上的该文件删除？" buttonTitles:@[@"只是取消下载"] destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             switch (index) {
                 case 0:
                     [self doDeleteCurFile:self.curFile fromDisk:YES];
@@ -396,7 +394,7 @@
             }
         }];
     }else{
-        actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"确定将服务器上的该文件删除？" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"确定将服务器上的该文件删除？" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [self doDeleteCurFile:self.curFile fromDisk:NO];
             }
@@ -412,7 +410,7 @@
         [Coding_FileManager cancelCDownloadTaskForKey:file.storage_key];
     }
     //    删除本地文件
-    NSURL *fileUrl = [file hasBeenDownload];
+    NSURL *fileUrl = [file diskFileUrl];
     NSString *filePath = fileUrl.path;
     NSFileManager *fm = [NSFileManager defaultManager];
     if ([fm fileExistsAtPath:filePath]) {
@@ -447,18 +445,18 @@
 }
 
 - (void)saveCurImg{
-    SEL selectorToCall = @selector(imageWasSavedSuccessfully:didFinishSavingWithError:contextInfo:);
-    
-    UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:self.fileUrl]];
-    if (!image) {
-        [NSObject showHudTipStr:@"提取图片失败"];
-        return;
-    }
-    UIImageWriteToSavedPhotosAlbum(image, self, selectorToCall, NULL);
+    __weak typeof(self) weakSelf = self;
+    [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+        [[PHAssetCreationRequest creationRequestForAsset] addResourceWithType:PHAssetResourceTypePhoto fileURL:weakSelf.fileUrl options:nil];
+    } completionHandler:^(BOOL success, NSError * _Nullable error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [weakSelf saveImageHappenedError:error];
+        });
+    }];
 }
 
-- (void) imageWasSavedSuccessfully:(UIImage *)paramImage didFinishSavingWithError:(NSError *)paramError contextInfo:(void *)paramContextInfo{
-    if (paramError == nil){
+- (void)saveImageHappenedError:(NSError *)error{
+    if (error == nil){
         [NSObject showHudTipStr:@"成功保存到相册"];
     } else {
         [NSObject showHudTipStr:@"保存失败"];
@@ -507,29 +505,34 @@
 
 #pragma mark EaseToolBarDelegate
 - (void)easeToolBar:(EaseToolBar *)toolBar didClickedIndex:(NSInteger)index{
-    EaseToolBarItem *item = [toolBar itemOfIndex:index];
-    NSString *tipStr = nil;
     if (index == 0) {
+        [MobClick event:kUmeng_Event_File label:@"文件_点击文件动态"];
+        
         FileActivitiesViewController *vc = [FileActivitiesViewController vcWithFile:_curFile];
         [self.navigationController pushViewController:vc animated:YES];
-        tipStr = kFunctionTipStr_File_2V_Activity;
     }else if (index == 1){
+        [MobClick event:kUmeng_Event_File label:@"文件_点击历史版本"];
+        
         FileVersionsViewController *vc = [FileVersionsViewController vcWithFile:_curFile];
         [self.navigationController pushViewController:vc animated:YES];
-        tipStr = kFunctionTipStr_File_2V_Version;
-    }
-    if ([[FunctionTipsManager shareManager] needToTip:tipStr]) {
-        [[FunctionTipsManager shareManager] markTiped:tipStr];
-        [item removeTipIcon];
     }
 }
 #pragma mark Data Value
-- (NSURL *)hasBeenDownload{
+- (BOOL)p_isTextContent{
+    if ([self.fileType isEqualToString:@"md"]
+        || [self.fileType isEqualToString:@"html"]
+        || [self.fileType isEqualToString:@"txt"]
+        || [self.fileType isEqualToString:@"plist"]){
+        return YES;
+    }
+    return NO;
+}
+- (NSURL *)diskFileUrl{
     NSURL *fileUrl;
     if (self.curVersion) {
-        fileUrl = [self.curVersion hasBeenDownload];
+        fileUrl = [self.curVersion diskFileUrl];
     }else{
-        fileUrl = [self.curFile hasBeenDownload];
+        fileUrl = [self.curFile diskFileUrl];
     }
     return fileUrl;
 }
@@ -569,6 +572,50 @@
         return NO;
     }
 }
+#pragma mark download TextContent
+- (void)p_startDownload{
+    NSURL *fileUrl = _curVersion.diskFileUrl ?: _curFile.diskFileUrl;
+    Coding_DownloadTask *cDownloadTask = _curVersion? _curVersion.cDownloadTask : _curFile.cDownloadTask;
+    if (!fileUrl) {
+        if (cDownloadTask) {//重新开始
+            if (cDownloadTask.task.state == NSURLSessionTaskStateSuspended) {
+                [cDownloadTask.task resume];
+            }
+        }else{//新建下载
+            if (!(_curVersion.project_id ?: _curFile.project_id)) {
+                [NSObject showHudTipStr:@"下载失败~"];
+            }else{
+                __weak typeof(self) weakSelf = self;
+                cDownloadTask = [[Coding_FileManager sharedManager] addDownloadTaskForObj:_curVersion ?: _curFile completionHandler:^(NSURLResponse *response, NSURL *filePath, NSError *error) {
+                    [weakSelf.view endLoading];
+                    if (error) {
+                        [NSObject showError:error];
+                        DebugLog(@"ERROR:%@", error.description);
+                    }else{
+                        DebugLog(@"File downloaded to: %@", filePath);
+                    }
+                }];
+            }
+        }
+        self.progress = cDownloadTask.progress;
+    }
+}
+
+- (void)setProgress:(NSProgress *)progress{
+    _progress = progress;
+    __weak typeof(self) weakSelf = self;
+    if (_progress && _progress.fractionCompleted < 0.999) {
+        [self.view beginLoading];
+        [[RACObserve(self, progress.fractionCompleted) takeUntil:self.rac_willDeallocSignal] subscribeNext:^(NSNumber *fractionCompleted) {
+            if (fractionCompleted.doubleValue > 0.999) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [weakSelf configContent];
+                });
+            }
+        }];
+    }
+}
+
 @end
 
 

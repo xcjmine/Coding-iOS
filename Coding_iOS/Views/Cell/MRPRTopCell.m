@@ -6,14 +6,13 @@
 //  Copyright (c) 2015年 Coding. All rights reserved.
 //
 
-#define kMRPRActionView_Height 25.0
-#define kMRPRTopCell_FontTitle [UIFont boldSystemFontOfSize:18]
-#define kMRPRTopCell_FontFromTo [UIFont boldSystemFontOfSize:12]
+#define kMRPRActionView_Height 35.0
+#define kMRPRTopCell_FontTitle [UIFont boldSystemFontOfSize:15]
+#define kMRPRTopCell_FontFromTo [UIFont systemFontOfSize:12]
 
 #import "MRPRTopCell.h"
 
 @interface MRPRTopCell ()
-@property (strong, nonatomic) UIImageView *userIconView;
 @property (strong, nonatomic) UILabel *titleL, *timeL, *statusL;
 
 @property (strong, nonatomic) UIView *lineView;
@@ -29,21 +28,16 @@
         // Initialization code
         self.selectionStyle = UITableViewCellSelectionStyleNone;
         self.backgroundColor = kColorTableBG;
-        if (!_userIconView) {
-            _userIconView = [[UIImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, 0, 20, 20)];
-            [_userIconView doCircleFrame];
-            [self.contentView addSubview:_userIconView];
-        }
         CGFloat curWidth = kScreen_Width - 2 * kPaddingLeftWidth;
         if (!_titleL) {
             _titleL = [[UILabel alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, 15,  curWidth, 30)];
-            _titleL.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _titleL.textColor = kColorDark3;
             _titleL.font = kMRPRTopCell_FontTitle;
             [self.contentView addSubview:_titleL];
         }
         if (!_timeL) {
             _timeL = [[UILabel alloc] initWithFrame:CGRectMake(kPaddingLeftWidth +25, 0, curWidth, 20)];
-            _timeL.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _timeL.textColor = kColorDark7;
             _timeL.font = [UIFont systemFontOfSize:12];
             [self.contentView addSubview:_timeL];
         }
@@ -63,9 +57,11 @@
         
         if (!_fromL) {
             _fromL = [UILabel new];
-            [_fromL doBorderWidth:0.5 color:[UIColor colorWithHexString:@"0x4E90BF"] cornerRadius:2.0];
+            _fromL.backgroundColor = [UIColor colorWithHexString:@"0xF2F4F6"];
+            _fromL.cornerRadius = 2;
+            _fromL.masksToBounds = YES;
             _fromL.font = kMRPRTopCell_FontFromTo;
-            _fromL.textColor = [UIColor colorWithHexString:@"0x4E90BF"];
+            _fromL.textColor = [UIColor colorWithHexString:@"0x76808E"];
             [self.contentView addSubview:_fromL];
         }
         if (!_arrowIcon) {
@@ -75,17 +71,19 @@
         }
         if (!_toL) {
             _toL = [UILabel new];
-            [_toL doBorderWidth:0.5 color:[UIColor colorWithHexString:@"0x4E90BF"] cornerRadius:2.0];
+            _toL.backgroundColor = [UIColor colorWithHexString:@"0xD8DDE4"];
+            _toL.cornerRadius = 2;
+            _toL.masksToBounds = YES;
             _toL.font = kMRPRTopCell_FontFromTo;
-            _toL.textColor = [UIColor colorWithHexString:@"0x4E90BF"];
+            _toL.textColor = [UIColor colorWithHexString:@"0x76808E"];
             [self.contentView addSubview:_toL];
         }
         
         {
             [_timeL mas_makeConstraints:^(MASConstraintMaker *make) {
-                make.left.equalTo(_userIconView.mas_right).offset(5);
-                make.centerY.equalTo(_userIconView);
-                make.height.mas_equalTo(_userIconView.mas_height);
+                make.left.offset(kPaddingLeftWidth);
+                make.top.equalTo(_titleL.mas_bottom).offset(15);
+                make.height.mas_equalTo(17);
             }];
             
             [_statusL mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -95,20 +93,20 @@
                 make.width.mas_equalTo(80);
             }];
             [_lineView mas_makeConstraints:^(MASConstraintMaker *make) {
-                make.left.equalTo(_userIconView);
+                make.left.equalTo(_timeL);
                 make.right.equalTo(_statusL);
                 make.height.mas_equalTo(0.5);
-                make.top.equalTo(_userIconView.mas_bottom).offset(15);
+                make.top.equalTo(_timeL.mas_bottom).offset(15);
             }];
             [_fromL mas_makeConstraints:^(MASConstraintMaker *make) {
-                make.left.equalTo(_userIconView);
+                make.left.equalTo(_timeL);
                 make.top.equalTo(_lineView.mas_bottom).offset(15);
                 make.height.mas_equalTo(20);
             }];
             [_arrowIcon mas_makeConstraints:^(MASConstraintMaker *make) {
                 make.left.equalTo(_fromL.mas_right).offset(10);
                 make.centerY.equalTo(_fromL);
-                make.size.mas_equalTo(CGSizeMake(15, 15));
+                make.size.mas_equalTo(CGSizeMake(12, 12));
                 make.right.lessThanOrEqualTo(self.contentView).offset(-kPaddingLeftWidth);
             }];
         }
@@ -122,18 +120,16 @@
     if (!_curMRPRInfo) {
         return;
     }
-    CGFloat curBottomY = 0;
     CGFloat curWidth = kScreen_Width -2*kPaddingLeftWidth;
     [_titleL setLongString:_curMRPRInfo.mrpr.title withFitWidth:curWidth];
     
-    curBottomY += CGRectGetMaxY(_titleL.frame) + 15;
-    
-    [_userIconView sd_setImageWithURL:[_curMRPRInfo.mrpr.author.avatar urlImageWithCodePathResizeToView:_userIconView] placeholderImage:kPlaceholderMonkeyRoundView(_userIconView)];
-    [_userIconView setY:curBottomY];
-    
     _timeL.attributedText = [self attributeTail];
     _statusL.text =  _curMRPRInfo.mrpr.statusDisplay;
-    
+    _statusL.textColor = [UIColor colorWithHexString:(_curMRPRInfo.mrpr.status == MRPRStatusCanMerge? @"0x666666":
+                                                      _curMRPRInfo.mrpr.status == MRPRStatusCannotMerge? @"0xB89FDA":
+                                                      _curMRPRInfo.mrpr.status == MRPRStatusAccepted? @"0x0060FF":
+                                                      _curMRPRInfo.mrpr.status == MRPRStatusRefused? @"0xF56061":
+                                                      @"0xF56061")];
     NSString *fromStr, *toStr;
     if (_curMRPRInfo.mrpr.isMR) {
         fromStr = [NSString stringWithFormat:@"  %@  ", _curMRPRInfo.mrpr.srcBranch];
@@ -145,7 +141,7 @@
     NSString *totalStr = [NSString stringWithFormat:@"%@%@", fromStr, toStr];
     if ([totalStr getWidthWithFont:kMRPRTopCell_FontFromTo constrainedToSize:CGSizeMake(CGFLOAT_MAX, 20)] + 40 > kScreen_Width - 2*kPaddingLeftWidth) {
         [_toL mas_remakeConstraints:^(MASConstraintMaker *make) {
-            make.left.equalTo(_userIconView);
+            make.left.equalTo(_timeL);
             make.top.equalTo(_fromL.mas_bottom).offset(15);
             make.height.equalTo(_fromL);
             make.right.lessThanOrEqualTo(self.contentView).offset(-kPaddingLeftWidth);
@@ -181,15 +177,8 @@
 
 - (NSAttributedString *)attributeTail{
     NSString *nameStr = _curMRPRInfo.mrpr.author.name? _curMRPRInfo.mrpr.author.name: @"";
-    NSString *timeStr = _curMRPRInfo.mrpr.created_at? [_curMRPRInfo.mrpr.created_at stringDisplay_HHmm]: @"";
-    NSMutableAttributedString *attrString = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@ %@", nameStr, timeStr]];
-    [attrString addAttributes:@{NSFontAttributeName : [UIFont boldSystemFontOfSize:12],
-                                NSForegroundColorAttributeName : [UIColor colorWithHexString:@"0x222222"]}
-                        range:NSMakeRange(0, nameStr.length)];
-    [attrString addAttributes:@{NSFontAttributeName : [UIFont boldSystemFontOfSize:12],
-                                NSForegroundColorAttributeName : [UIColor colorWithHexString:@"0x999999"]}
-                        range:NSMakeRange(nameStr.length + 1, timeStr.length)];
-    return attrString;
+    NSString *timeStr = _curMRPRInfo.mrpr.created_at? [_curMRPRInfo.mrpr.created_at stringTimesAgo]: @"";
+    return [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@ 创建 %@", nameStr, timeStr]];
 }
 
 + (CGFloat)cellHeightWithObj:(id)obj{
@@ -237,7 +226,7 @@
 {
     self = [super init];
     if (self) {
-        self.backgroundColor = [UIColor colorWithHexString:@"0xfafafa"];
+        self.backgroundColor = kColorNavBG;
         self.frame = CGRectMake(kPaddingLeftWidth, 0, kScreen_Width - 2*kPaddingLeftWidth, kMRPRActionView_Height);
         if (!_icon) {
             _icon = [UIImageView new];
@@ -278,7 +267,7 @@
         case MRPRStatusAccepted:
             imageStr = @"mrpr_icon_accepted";
             contentStr = @"合并";
-            lineColorStr = @"0x3BBD79";
+            lineColorStr = @"0x0060FF";
             break;
         case MRPRStatusRefused:
             imageStr = @"mrpr_icon_refaused";
@@ -295,13 +284,13 @@
     }
     _lineView.backgroundColor = [UIColor colorWithHexString:lineColorStr];
     [_icon setImage:[UIImage imageNamed:imageStr]];
-    contentStr = [NSString stringWithFormat:@"%@ %@ %@了这个请求", userName, [actionDate stringDisplay_HHmm], contentStr];
+    contentStr = [NSString stringWithFormat:@"%@ %@ %@了这个请求", userName, [actionDate stringTimesAgo], contentStr];
     NSMutableAttributedString *attrContentStr = [[NSMutableAttributedString alloc] initWithString:contentStr];
-    [attrContentStr addAttributes:@{NSFontAttributeName : [UIFont boldSystemFontOfSize:12],
-                                    NSForegroundColorAttributeName : [UIColor colorWithHexString:@"0x222222"]}
+    [attrContentStr addAttributes:@{NSFontAttributeName : [UIFont systemFontOfSize:14],
+                                    NSForegroundColorAttributeName : kColorDark3}
                             range:NSMakeRange(0, userName.length)];
-    [attrContentStr addAttributes:@{NSFontAttributeName : [UIFont boldSystemFontOfSize:12],
-                                    NSForegroundColorAttributeName : [UIColor colorWithHexString:@"0x999999"]}
+    [attrContentStr addAttributes:@{NSFontAttributeName : [UIFont systemFontOfSize:14],
+                                    NSForegroundColorAttributeName : kColorDark7}
                             range:NSMakeRange(userName.length, attrContentStr.length - userName.length)];
     _contentL.attributedText = attrContentStr;
 }

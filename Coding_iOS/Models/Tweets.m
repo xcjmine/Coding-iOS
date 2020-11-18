@@ -26,7 +26,6 @@
 + (Tweets *)tweetsWithType:(TweetType)tweetType{
     Tweets *tweets = [[Tweets alloc] init];
     tweets.tweetType = tweetType;
-    tweets.last_id = kDefaultLastId;
     tweets.canLoadMore = NO;
     tweets.isLoading = NO;
     tweets.willLoadMore = NO;
@@ -35,6 +34,11 @@
 + (Tweets *)tweetsWithUser:(User *)curUser{
     Tweets *tweets = [Tweets tweetsWithType:TweetTypeUserSingle];
     tweets.curUser = curUser;
+    return tweets;
+}
++ (Tweets *)tweetsWithProject:(Project *)curPro{
+    Tweets *tweets = [Tweets tweetsWithType:TweetTypeProject];
+    tweets.curPro = curPro;
     return tweets;
 }
 
@@ -51,6 +55,8 @@
         case TweetTypeUserSingle:
             requstPath = @"api/tweet/user_public";
             break;
+            case TweetTypeProject:
+            requstPath = [NSString stringWithFormat:@"api/project/%@/tweet", _curPro.id.stringValue];
         default:
             break;
     }
@@ -78,25 +84,20 @@
         default:
             break;
     }
-    [params setObject:(_willLoadMore? _last_id:kDefaultLastId) forKey:@"last_id"];
-//    if (kDevice_Is_iPhone6Plus) {
-//        params[@"default_like_count"] = @12;
-//    }
+    params[@"last_time"] = _willLoadMore? @((long long)([_last_time timeIntervalSince1970] * 1000)): nil;//冒泡广场、朋友圈、个人，都已经改成用 time 了
+    params[@"last_id"] = _willLoadMore? _last_id: nil;//项目内冒泡还在用 id
     return params;
 }
 
-- (NSString *)localResponsePath{
-    if ([_last_id isEqualToNumber:kDefaultLastId]) {
-        return [NSString stringWithFormat:@"ActivieiesWithType_%d", (int)_tweetType];
-    }else{
-        return nil;
-    }
-}
 - (void)configWithTweets:(NSArray *)responseA{
+    if (self.curPro) {
+        [responseA setValue:self.curPro forKey:@"project"];
+    }
     if (responseA && [responseA count] > 0) {
         self.canLoadMore = (_tweetType != TweetTypePublicHot);
         Tweet *lastTweet = [responseA lastObject];
-        self.last_id = lastTweet.id;
+        _last_time = lastTweet.sort_time;
+        _last_id = lastTweet.id;
         if (_willLoadMore) {
             [_list addObjectsFromArray:responseA];
         }else{

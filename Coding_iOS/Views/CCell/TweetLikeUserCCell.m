@@ -6,7 +6,7 @@
 //  Copyright (c) 2014年 Coding. All rights reserved.
 //
 
-#define kTweetCell_LikeUserCCell_Height 25.0
+#define kTweetCell_LikeUserCCell_Height 30.0
 
 #import "TweetLikeUserCCell.h"
 
@@ -19,7 +19,7 @@
 @implementation TweetLikeUserCCell
 - (void)configWithUser:(User *)user rewarded:(BOOL)rewarded{
     if (!self.imgView) {
-        self.imgView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, kTweetCell_LikeUserCCell_Height, kTweetCell_LikeUserCCell_Height)];
+        self.imgView = [[YLImageView alloc] initWithFrame:CGRectMake(0, 0, kTweetCell_LikeUserCCell_Height, kTweetCell_LikeUserCCell_Height)];
         self.imgView.layer.masksToBounds = YES;
         self.imgView.layer.cornerRadius = kTweetCell_LikeUserCCell_Height/2;
         self.imgView.layer.borderColor = [UIColor colorWithHexString:@"0xFFAE03"].CGColor;
@@ -32,7 +32,7 @@
         }
     }else{
         [self.imgView sd_setImageWithURL:nil];
-        [self.imgView setImage:[UIImage imageWithColor:[UIColor colorWithHexString:@"0xdadada"]]];
+        [self.imgView setImage:[UIImage imageWithColor:[UIColor colorWithHexString:@"0xD8DDE4"]]];
         if (!_likesLabel) {
             _likesLabel = [[UILabel alloc] initWithFrame:_imgView.bounds];
             _likesLabel.backgroundColor = [UIColor clearColor];
@@ -49,5 +49,10 @@
 }
 - (void)layoutSubviews{
     [super layoutSubviews];
+}
+
++(CGSize)ccellSize{
+    CGSize itemSize = CGSizeMake(kTweetCell_LikeUserCCell_Height, kTweetCell_LikeUserCCell_Height);
+    return itemSize;
 }
 @end

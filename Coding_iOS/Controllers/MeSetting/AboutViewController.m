@@ -7,27 +7,101 @@
 //
 
 #import "AboutViewController.h"
+#import "TitleDisclosureCell.h"
+#import "CodingShareView.h"
+
+
+#ifdef Target_Enterprise
 
 @interface AboutViewController ()
 @end
 
 @implementation AboutViewController
 
-- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
-{
-    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
-    if (self) {
-        // Custom initialization
-    }
-    return self;
-}
-
-- (void)viewDidLoad
-{
+- (void)viewDidLoad{
     [super viewDidLoad];
     // Do any additional setup after loading the view.
     self.view.backgroundColor = kColorTableSectionBg;
-    self.title = @"关于Coding";
+    self.title = @"关于我们";
+    
+    CGFloat logoViewTop, logoLabelTop, versionLabelTop, infoLabelBottom;
+    NSString *icon_user_monkey;
+    if (kDevice_Is_iPhone6Plus) {
+        logoViewTop = 80;
+        logoLabelTop = 30;
+        versionLabelTop = 35;
+        infoLabelBottom = 35;
+        icon_user_monkey = @"icon_user_monkey";
+    }else if (kDevice_Is_iPhone6){
+        logoViewTop = 65;
+        logoLabelTop = 20;
+        versionLabelTop = 20;
+        infoLabelBottom = 20;
+        icon_user_monkey = @"icon_user_monkey";
+    }else{
+        logoViewTop = 40;
+        logoLabelTop = 15;
+        versionLabelTop = 20;
+        infoLabelBottom = 20;
+        icon_user_monkey = @"icon_user_monkey";
+    }
+    
+    UIImageView *logoView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:icon_user_monkey]];
+    [self.view addSubview:logoView];
+    
+    UILabel *versionLabel = [[UILabel alloc] init];
+    versionLabel.font = [UIFont systemFontOfSize:13];
+    versionLabel.textColor = [UIColor colorWithHexString:@"0x323A45"];
+    versionLabel.textAlignment = NSTextAlignmentCenter;
+    versionLabel.numberOfLines = 0;
+    versionLabel.text = [NSString stringWithFormat:@"CODING Enterprise\n\n版本：V%@", kVersion_Coding];
+    versionLabel.userInteractionEnabled = YES;
+    __weak typeof(versionLabel) weakLabel = versionLabel;
+    [versionLabel bk_whenTapped:^{
+        weakLabel.text = [NSString stringWithFormat:@"CODING Enterprise\n\n版本：V%@", [weakLabel.text hasSuffix:kVersion_Coding]? kVersionBuild_Coding: kVersion_Coding];
+    }];
+    [self.view addSubview:versionLabel];
+    
+    UILabel *infoLabel = [[UILabel alloc] init];
+    infoLabel.numberOfLines = 0;
+    infoLabel.backgroundColor = [UIColor clearColor];
+    infoLabel.font = [UIFont systemFontOfSize:13];
+    infoLabel.textColor = [UIColor colorWithHexString:@"0x76808E"];
+    infoLabel.textAlignment = NSTextAlignmentCenter;
+    infoLabel.text = [NSString stringWithFormat:@"官网：https://e.coding.net \n联系电话：400-930-9163 \n客服邮箱：enterprise@coding.net\n客服 QQ：2847276903"];
+    [self.view addSubview:infoLabel];
+    
+    [logoView mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.top.equalTo(self.view.mas_top).offset(logoViewTop);
+        make.centerX.equalTo(self.view.mas_centerX);
+    }];
+    
+    [versionLabel mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.top.equalTo(logoView.mas_bottom).offset(logoLabelTop);
+        make.left.right.equalTo(self.view);
+    }];
+    
+    [infoLabel mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.bottom.equalTo(self.view.mas_bottom).offset(-infoLabelBottom - kSafeArea_Bottom);
+        make.left.right.mas_equalTo(self.view);
+    }];
+}
+
+@end
+
+#else
+
+
+@interface AboutViewController ()<UITableViewDataSource, UITableViewDelegate>
+@end
+
+@implementation AboutViewController
+
+- (void)viewDidLoad{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view.
+    self.view.backgroundColor = kColorTableSectionBg;
+    self.title = @"关于我们";
     
     CGFloat logoViewTop, logoLabelTop, versionLabelTop, infoLabelBottom;
     NSString *icon_user_monkey;
@@ -56,25 +130,31 @@
     
     UILabel *logoLabel = [[UILabel alloc] init];
     logoLabel.font = [UIFont boldSystemFontOfSize:17];
-    logoLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+    logoLabel.textColor = kColor222;
     logoLabel.textAlignment = NSTextAlignmentCenter;
-    logoLabel.text = @"Coding-让开发更简单";
+    logoLabel.text = @"CODING-让开发更简单";
     [self.view addSubview:logoLabel];
     
     UILabel *versionLabel = [[UILabel alloc] init];
     versionLabel.font = [UIFont systemFontOfSize:12];
-    versionLabel.textColor = [UIColor colorWithHexString:@"0x666666"];
+    versionLabel.textColor = kColor666;
     versionLabel.textAlignment = NSTextAlignmentCenter;
-    versionLabel.text = [NSString stringWithFormat:@"版本：V%@", kVersionBuild_Coding];
+    versionLabel.text = [NSString stringWithFormat:@"版本：V%@", kVersion_Coding];
+    versionLabel.userInteractionEnabled = YES;
+    __weak typeof(versionLabel) weakLabel = versionLabel;
+    [versionLabel bk_whenTapped:^{
+        weakLabel.text = [NSString stringWithFormat:@"版本：V%@", [weakLabel.text hasSuffix:kVersion_Coding]? kVersionBuild_Coding: kVersion_Coding];
+    }];
+
     [self.view addSubview:versionLabel];
     
     UILabel *infoLabel = [[UILabel alloc] init];
     infoLabel.numberOfLines = 0;
     infoLabel.backgroundColor = [UIColor clearColor];
     infoLabel.font = [UIFont systemFontOfSize:12];
-    infoLabel.textColor = [UIColor colorWithHexString:@"0x666666"];
+    infoLabel.textColor = kColor666;
     infoLabel.textAlignment = NSTextAlignmentCenter;
-    infoLabel.text = [NSString stringWithFormat:@"官网：https://coding.net \nE-mail：link@coding.net \n微博：Coding \n微信：扣钉Coding"];
+    infoLabel.text = [NSString stringWithFormat:@"官网：https://coding.net \nE-mail：support@coding.net \n微博：Coding \n微信：扣钉Coding\nQQ 群：617404718"];
     [self.view addSubview:infoLabel];
     
     [logoView mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -97,64 +177,44 @@
     [infoLabel mas_makeConstraints:^(MASConstraintMaker *make) {
         make.bottom.equalTo(self.view.mas_bottom).offset(-infoLabelBottom);
         make.left.right.mas_equalTo(self.view);
-        make.height.mas_equalTo(5*infoLabel.font.pointSize);
+        make.height.mas_equalTo(6*infoLabel.font.pointSize);
     }];
     
-    
-    
-    
-//    UILabel *infoLabel1 = [[UILabel alloc] init];
-//    infoLabel1.numberOfLines = 0;
-//    infoLabel1.backgroundColor = [UIColor clearColor];
-//    infoLabel1.font = [UIFont systemFontOfSize:12];
-//    infoLabel1.textColor = [UIColor colorWithHexString:@"0x666666"];
-//    infoLabel1.textAlignment = NSTextAlignmentRight;
-//    infoLabel1.text = [NSString stringWithFormat:@"官网：\nE-mail：\n微博：\n微信："];
-//    [self.view addSubview:infoLabel1];
-//
-//    UILabel *infoLabel2 = [[UILabel alloc] init];
-//    infoLabel2.numberOfLines = 0;
-//    infoLabel2.backgroundColor = [UIColor clearColor];
-//    infoLabel2.font = [UIFont systemFontOfSize:12];
-//    infoLabel2.textColor = [UIColor colorWithHexString:@"0x666666"];
-//    infoLabel2.textAlignment = NSTextAlignmentLeft;
-//    infoLabel2.text = [NSString stringWithFormat:@"https://coding.net \nlink@coding.net \nCoding \n扣钉Coding"];
-//    [self.view addSubview:infoLabel2];
-
-
-//    UILabel *copyrightLabel = [[UILabel alloc] init];
-//    copyrightLabel.font = [UIFont systemFontOfSize:12];
-//    copyrightLabel.textColor = [UIColor colorWithHexString:@"0x666666"];
-//    copyrightLabel.textAlignment = NSTextAlignmentCenter;
-//    copyrightLabel.text = [NSString stringWithFormat:@"Copyright © 2015 Coding.net"];
-//    [self.view addSubview:copyrightLabel];
-
-//    [infoLabel1 mas_makeConstraints:^(MASConstraintMaker *make) {
-//        make.bottom.equalTo(copyrightLabel.mas_top).offset(-20);
-//        make.left.mas_equalTo(self.view.mas_left);
-//        make.right.equalTo(self.view.mas_centerX).offset(-20);
-//        make.height.mas_equalTo(60);
-//    }];
-//
-//    [infoLabel2 mas_makeConstraints:^(MASConstraintMaker *make) {
-//        make.bottom.equalTo(copyrightLabel.mas_top).offset(-20);
-//        make.left.mas_equalTo(infoLabel1.mas_right);
-//        make.right.equalTo(self.view.mas_right);
-//        make.height.mas_equalTo(60);
-//    }];
-
-//    [copyrightLabel mas_makeConstraints:^(MASConstraintMaker *make) {
-//        make.bottom.equalTo(self.view.mas_bottom).offset(-20);
-//        make.left.right.equalTo(self.view);
-//        make.height.mas_equalTo(20);
-//    }];
-    
+    UITableView *tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStylePlain];
+    tableView.scrollEnabled = NO;
+    tableView.backgroundColor = [UIColor clearColor];
+    tableView.dataSource = self;
+    tableView.delegate = self;
+    tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    [tableView registerClass:[TitleDisclosureCell class] forCellReuseIdentifier:kCellIdentifier_TitleDisclosure];
+    [self.view addSubview:tableView];
+    [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.left.right.bottom.equalTo(self.view);
+        make.top.equalTo(versionLabel.mas_bottom).offset(44);
+    }];
 }
 
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+#pragma mark Table
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+    return 2;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+    TitleDisclosureCell *cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_TitleDisclosure forIndexPath:indexPath];
+    [cell setTitleStr:indexPath.row == 0? @"去评分": @"推荐 CODING"];
+    [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:kPaddingLeftWidth];
+    return cell;
+}
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if (indexPath.row == 0) {//评分
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:kAppReviewURL]];
+    }else{//推荐 Coding
+        [CodingShareView showShareViewWithObj:nil];
+    }
 }
 
 @end
+
+#endif
+

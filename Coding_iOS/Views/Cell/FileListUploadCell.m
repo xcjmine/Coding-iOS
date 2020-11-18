@@ -36,7 +36,7 @@
         }
         if (!_nameLabel) {
             _nameLabel = [[UILabel alloc] init];
-            _nameLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _nameLabel.textColor = kColor222;
             _nameLabel.font = [UIFont systemFontOfSize:16];
             [self.contentView addSubview:_nameLabel];
         }
@@ -59,7 +59,7 @@
             _progressView.delegate = self;
             _progressView.font = [UIFont fontWithName:@"Futura-CondensedExtraBold" size:12];
             [_progressView setTrackTintColor:[UIColor colorWithHexString:@"0xd5d5d5"]];
-            _progressView.popUpViewAnimatedColors = @[[UIColor colorWithHexString:@"0x3abd79"]];
+            _progressView.popUpViewAnimatedColors = @[kColorLightBlue];
             [self.progressView hidePopUpViewAnimated:NO];
             [self.contentView addSubview:self.progressView];
         }

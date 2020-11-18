@@ -20,6 +20,7 @@
 
 //photo
 #import "Coding_FileManager.h"
+#import "Coding_NetAPIManager.h"
 #import <MBProgressHUD/MBProgressHUD.h>
 
 @interface EaseMarkdownTextView ()
@@ -57,11 +58,6 @@
              
              [self createButtonWithTitle:@"@" andEventHandler:^{ [self doAT]; }],
              
-             [self createButtonWithTitle:@"#" andEventHandler:^{ [self insertText:@"#"]; }],
-             [self createButtonWithTitle:@"*" andEventHandler:^{ [self insertText:@"*"]; }],
-             [self createButtonWithTitle:@"`" andEventHandler:^{ [self insertText:@"`"]; }],
-             [self createButtonWithTitle:@"-" andEventHandler:^{ [self insertText:@"-"]; }],
-             
              [self createButtonWithTitle:@"照片" andEventHandler:^{ [self doPhoto]; }],
              
              [self createButtonWithTitle:@"标题" andEventHandler:^{ [self doTitle]; }],
@@ -71,6 +67,17 @@
              [self createButtonWithTitle:@"引用" andEventHandler:^{ [self doQuote]; }],
              [self createButtonWithTitle:@"列表" andEventHandler:^{ [self doList]; }],
              
+             [self createButtonWithTitle:@"分割线" andEventHandler:^{
+                 NSRange selectionRange = self.selectedRange;
+                 NSString *insertStr = [self needPreNewLine]? @"\n\n------\n": @"\n------\n";
+                 
+                 selectionRange.location += insertStr.length;
+                 selectionRange.length = 0;
+                 
+                 [self insertText:insertStr];
+                 [self setSelectionRange:selectionRange];
+             }],
+
              [self createButtonWithTitle:@"链接" andEventHandler:^{
                  NSString *tipStr = @"在此输入链接地址";
                  NSRange selectionRange = self.selectedRange;
@@ -91,17 +98,11 @@
                  [self setSelectionRange:selectionRange];
              }],
              
-             [self createButtonWithTitle:@"分割线" andEventHandler:^{
-                 NSRange selectionRange = self.selectedRange;
-                 NSString *insertStr = [self needPreNewLine]? @"\n\n------\n": @"\n------\n";
-                 
-                 selectionRange.location += insertStr.length;
-                 selectionRange.length = 0;
-                 
-                 [self insertText:insertStr];
-                 [self setSelectionRange:selectionRange];
-             }],
-             
+             [self createButtonWithTitle:@"#" andEventHandler:^{ [self insertText:@"#"]; }],
+             [self createButtonWithTitle:@"*" andEventHandler:^{ [self insertText:@"*"]; }],
+             [self createButtonWithTitle:@"`" andEventHandler:^{ [self insertText:@"`"]; }],
+             [self createButtonWithTitle:@"-" andEventHandler:^{ [self insertText:@"-"]; }],
+
              [self createButtonWithTitle:@"_" andEventHandler:^{ [self insertText:@"_"]; }],
              [self createButtonWithTitle:@"+" andEventHandler:^{ [self insertText:@"+"]; }],
              [self createButtonWithTitle:@"~" andEventHandler:^{ [self insertText:@"~"]; }],
@@ -221,7 +222,7 @@
 #pragma mark Photo
 - (void)doPhoto{
     //
-    [[UIActionSheet bk_actionSheetCustomWithTitle:nil buttonTitles:@[@"拍照", @"从相册选择"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+    [[UIAlertController ea_actionSheetCustomWithTitle:nil buttonTitles:@[@"拍照", @"从相册选择"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
         [self presentPhotoVCWithIndex:index];
     }] showInView:self];
 }
@@ -271,26 +272,71 @@
 }
 
 - (void)doUploadPhoto:(UIImage *)image{
-    //保存到app内
-    NSString *dateMarkStr = [[NSDate date] stringWithFormat:@"yyyyMMdd_HHmmss"];
-    NSString *originalFileName = [NSString stringWithFormat:@"%@.jpg", dateMarkStr];
-    
-    NSString *fileName = [NSString stringWithFormat:@"%@|||%@|||%@", self.curProject.id.stringValue, @"0", originalFileName];
-    if ([Coding_FileManager writeUploadDataWithName:fileName andImage:image]) {
+    if (!_isForProjectTweet || !_curProject) {
         [self hudTipWillShow:YES];
-        self.uploadingPhotoName = originalFileName;
-        Coding_UploadTask *uploadTask =[[Coding_FileManager sharedManager] addUploadTaskWithFileName:fileName projectIsPublic:_curProject.is_public.boolValue];
-        @weakify(self)
-        [RACObserve(uploadTask, progress.fractionCompleted) subscribeNext:^(NSNumber *fractionCompleted) {
-            @strongify(self);
+        __weak typeof(self) weakSelf = self;
+        [[Coding_NetAPIManager sharedManager] uploadTweetImage:image doneBlock:^(NSString *imagePath, NSError *error) {
+            [weakSelf hudTipWillShow:NO];
+            if (imagePath) {
+                //插入文字
+                NSString *photoLinkStr = [NSString stringWithFormat:[self needPreNewLine]? @"\n![图片](%@)\n": @"![图片](%@)\n", imagePath];
+                [weakSelf insertText:photoLinkStr];
+                [weakSelf becomeFirstResponder];
+            }else{
+                [NSObject showError:error];
+            }
+        } progerssBlock:^(CGFloat progressValue) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                if (self.HUD) {
-                    self.HUD.progress = MAX(0, fractionCompleted.floatValue-0.05) ;
+                if (weakSelf.HUD) {
+                    weakSelf.HUD.progress = MAX(0, progressValue-0.05) ;
                 }
             });
         }];
     }else{
-        [NSObject showHudTipStr:[NSString stringWithFormat:@"%@ 文件处理失败", originalFileName]];
+        //保存到app内
+        NSString *originalFileName = [NSString stringWithFormat:@"%@.JPG", [NSUUID UUID].UUIDString];
+        NSString *fileName = [NSString stringWithFormat:@"%@|||%@|||%@", self.curProject.id.stringValue, @"0", originalFileName];
+        if ([Coding_FileManager writeUploadDataWithName:fileName andImage:image]) {
+            [self hudTipWillShow:YES];
+            self.uploadingPhotoName = originalFileName;
+            
+            
+            __weak typeof(self) weakSelf = self;
+            if ([NSObject isPrivateCloud].boolValue) {
+                Coding_UploadTask *uploadTask =[[Coding_FileManager sharedManager] addUploadTaskWithFileName:fileName projectIsPublic:_curProject.is_public.boolValue];
+                [RACObserve(uploadTask, progress.fractionCompleted) subscribeNext:^(NSNumber *fractionCompleted) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        if (weakSelf.HUD) {
+                            weakSelf.HUD.progress = MAX(0, fractionCompleted.floatValue-0.05);
+                            DebugLog(@"uploadingPhotoName - %@ : %.2f", weakSelf.uploadingPhotoName, fractionCompleted.floatValue);
+                        }
+                    });
+                }];
+            }else{
+                [[Coding_FileManager sharedManager] addUploadTaskWithFileName:fileName isQuick:YES resultBlock:^(Coding_UploadTask *uploadTask) {
+                    [RACObserve(uploadTask, progress.fractionCompleted) subscribeNext:^(NSNumber *fractionCompleted) {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            if (weakSelf.HUD) {
+                                weakSelf.HUD.progress = MAX(0, fractionCompleted.floatValue-0.05);
+                                DebugLog(@"uploadingPhotoName - %@ : %.2f", weakSelf.uploadingPhotoName, fractionCompleted.floatValue);
+                            }
+                        });
+                    }];
+                }];
+            }
+//            Coding_UploadTask *uploadTask =[[Coding_FileManager sharedManager] addUploadTaskWithFileName:fileName projectIsPublic:_curProject.is_public.boolValue];
+//            @weakify(self)
+//            [RACObserve(uploadTask, progress.fractionCompleted) subscribeNext:^(NSNumber *fractionCompleted) {
+//                @strongify(self);
+//                dispatch_async(dispatch_get_main_queue(), ^{
+//                    if (self.HUD) {
+//                        self.HUD.progress = MAX(0, fractionCompleted.floatValue-0.05) ;
+//                    }
+//                });
+//            }];
+        }else{
+            [NSObject showHudTipStr:[NSString stringWithFormat:@"%@ 文件处理失败", originalFileName]];
+        }
     }
 }
 

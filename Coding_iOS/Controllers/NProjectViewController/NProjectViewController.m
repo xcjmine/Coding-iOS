@@ -11,27 +11,25 @@
 #import "ProjectDescriptionCell.h"
 #import "NProjectItemCell.h"
 
-//#import "ProjectItemsCell.h"
-//#import "ProjectActivityListCell.h"
 #import "ProjectViewController.h"
 #import "Coding_NetAPIManager.h"
 #import "ODRefreshControl.h"
 #import "WebViewController.h"
 
-//#import "UserInfoViewController.h"
-//#import "EditTaskViewController.h"
-//#import "TopicDetailViewController.h"
-//#import "FileListViewController.h"
-//#import "FileViewController.h"
 #import "UsersViewController.h"
 #import "ForkTreeViewController.h"
 
 #import "CodeViewController.h"
-#import "PRListViewController.h"
-#import "MRListViewController.h"
 #import "EaseGitButtonsView.h"
-
+#import "UserOrProjectTweetsViewController.h"
 #import "FunctionTipsManager.h"
+#import "MRPRListViewController.h"
+#import "WikiViewController.h"
+#import "EACodeBranchListViewController.h"
+#import "EACodeReleaseListViewController.h"
+#import "EALocalCodeListViewController.h"
+#import "TaskBoardsViewController.h"
+
 
 @interface NProjectViewController ()<UITableViewDataSource, UITableViewDelegate>
 @property (nonatomic, strong) UITableView *myTableView;
@@ -68,6 +66,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     
@@ -101,6 +102,7 @@
     [[Coding_NetAPIManager sharedManager] request_ProjectDetail_WithObj:_myProject andBlock:^(id data, NSError *error) {
         if (data) {
             weakSelf.myProject = data;
+            weakSelf.navigationItem.rightBarButtonItem = weakSelf.myProject.is_public.boolValue? nil: [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"addBtn_Artboard"] style:UIBarButtonItemStylePlain target:self action:@selector(tweetsBtnClicked)];
             [self refreshGitButtonsView];
             [weakSelf.myTableView reloadData];
         }
@@ -108,48 +110,84 @@
     }];
 }
 
-#pragma mark Table M
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
-    return 3;
+- (void)tweetsBtnClicked{
+    UserOrProjectTweetsViewController *vc = [UserOrProjectTweetsViewController new];
+    vc.curTweets = [Tweets tweetsWithProject:self.myProject];
+    [self.navigationController pushViewController:vc animated:YES];
 }
 
-//footer
-- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section{
-    if (section < 2) {
-        UIView *footerView = [UIView new];
-        footerView.backgroundColor = kColorTableSectionBg;
-        return footerView;
+#pragma mark Table M
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
+    if (!_myProject.is_public) {
+        return 0;
+    }else if (_myProject.is_public.boolValue) {
+        return 4;
+    }else if (_myProject.current_user_role_id.integerValue <= 75){
+        return 4;
     }else{
-        return nil;
+        return 6;
     }
 }
 
-- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section{
-    CGFloat footerHeight = section < 2? 20: 0.5;
-    return footerHeight;
-}
-
+//header
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section{
-    return 0.5;
+    CGFloat sectionH = 15;
+    if (section == 0) {
+        sectionH = kLine_MinHeight;
+    }else if (!_myProject.is_public.boolValue && (section == 2 || section == 4)){
+        sectionH = 50;
+    }
+    return sectionH;
 }
 
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section{
-    if (section > 0) {
-        UIView *headerView = [UIView new];
-        headerView.backgroundColor = kColorTableSectionBg;
-        return headerView;
-    }else{
-        return nil;
+    UIView *headerView = [UIView new];
+    headerView.backgroundColor = kColorTableSectionBg;
+    if (!_myProject.is_public.boolValue && (section == 2 || section == 4)) {
+        UILabel *leftL = [UILabel labelWithFont:[UIFont systemFontOfSize:15] textColor:kColorDark3];
+        leftL.text = section == 2? @"任务": @"代码";
+        [headerView addSubview:leftL];
+        [leftL mas_makeConstraints:^(MASConstraintMaker *make) {
+            make.top.offset(20);
+            make.left.offset(kPaddingLeftWidth);
+        }];
+        if (section == 4) {
+            UILabel *rightL = [UILabel labelWithFont:[UIFont systemFontOfSize:14] textColor:kColorLightBlue];
+            rightL.text = @"查看 README";
+            __weak typeof(self) weakSelf = self;
+            rightL.userInteractionEnabled = YES;
+            [rightL bk_whenTapped:^{
+                [weakSelf goToReadme];
+            }];
+            [headerView addSubview:rightL];
+            [rightL mas_makeConstraints:^(MASConstraintMaker *make) {
+                make.centerY.equalTo(leftL);
+                make.right.offset(-kPaddingLeftWidth);
+            }];
+        }
     }
+    return headerView;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section{
+    return section == ([self numberOfSectionsInTableView:_myTableView] - 1)? 44: kLine_MinHeight;
 }
 
 //data
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
     NSInteger row = 0;
-    if (section == 0 || section == 2) {
-        row = 2;
-    }else if (section == 1){
-        row = _myProject.is_public.boolValue? 4: 6;
+    if (_myProject.is_public.boolValue) {
+        row = (section == 0? 2:
+               section == 1? 4:
+               section == 2? 2:
+               1);
+    }else{
+        row = (section == 0? 2:
+               section == 1? 1:
+               section == 2? 2:
+               section == 3? 2:
+               section == 4? 4:
+               1);
     }
     return row;
 }
@@ -171,63 +209,58 @@
         }
     }else{
         NProjectItemCell *cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_NProjectItemCell forIndexPath:indexPath];
-        if (indexPath.section == 1){
-            switch (indexPath.row) {
-                case 0:
-                    [cell setImageStr:@"project_item_activity" andTitle:@"动态"];
-                    if (_myProject.un_read_activities_count.integerValue > 0) {
-                        [cell addTip:_myProject.un_read_activities_count.stringValue];
-                    }
-                    break;
-                case 1:
-                    if (_myProject.is_public.boolValue) {
-                        [cell setImageStr:@"project_item_topic" andTitle:@"讨论"];
-                    }else{
-                        [cell setImageStr:@"project_item_task" andTitle:@"任务"];
-                    }
-                    break;
-                case 2:
-                    if (_myProject.is_public.boolValue) {
-                        [cell setImageStr:@"project_item_code" andTitle:@"代码"];
-                    }else{
-                        [cell setImageStr:@"project_item_topic" andTitle:@"讨论"];
-                    }
-                    break;
-                case 3:
-                    if (_myProject.is_public.boolValue) {
-                        [cell setImageStr:@"project_item_member" andTitle:@"成员"];
-                    }else{
-                        [cell setImageStr:@"project_item_file" andTitle:@"文件"];
-                    }
-                    break;
-                case 4:
-                    [cell setImageStr:@"project_item_code" andTitle:@"代码"];
-                    break;
-                default:
-                    [cell setImageStr:@"project_item_member" andTitle:@"成员"];
-                    break;
+        if (indexPath.section == 1 && indexPath.row == 0) {
+            [cell setImageStr:@"project_item_activity" andTitle:@"动态"];
+            if (_myProject.un_read_activities_count.integerValue > 0) {
+                [cell addTip:_myProject.un_read_activities_count.stringValue];
             }
-        }else if (indexPath.section == 2){
-            switch (indexPath.row) {
-                case 0:
-                    [cell setImageStr:@"project_item_readme" andTitle:@"README"];
-                    break;
-                default:
-                    [cell setImageStr:@"project_item_mr_pr" andTitle:_myProject.is_public.boolValue? @"Pull Request": @"Merge Request"];
-                    break;
-            }
+        }else if (_myProject.is_public.boolValue) {
+            [cell setImageStr:(indexPath.section == 1? (indexPath.row == 1? @"project_item_topic":
+                                                        indexPath.row == 2? @"project_item_code":
+                                                        @"project_item_member"):
+                               indexPath.section == 2? (indexPath.row == 0? @"project_item_readme":
+                                                        @"project_item_mr_pr"):
+                               @"project_item_reading")
+                     andTitle:(indexPath.section == 1? (indexPath.row == 1? @"讨论":
+                                                        indexPath.row == 2? @"代码":
+                                                        @"成员"):
+                               indexPath.section == 2? (indexPath.row == 0? @"README":
+                                                        @"Pull Request"):
+                               @"本地阅读")];
+        }else{
+            [cell setImageStr:(indexPath.section == 2? (indexPath.row == 0? @"project_item_task":
+                                                        @"project_item_taskboard"):
+//                               indexPath.section == 3? (indexPath.row == 0? @"project_item_topic":
+                               indexPath.section == 3? (indexPath.row == 0? @"project_item_wiki":
+                                                        @"project_item_file"):
+                               indexPath.section == 4? (indexPath.row == 0? @"project_item_code":
+                                                        indexPath.row == 1? @"project_item_branch":
+                                                        indexPath.row == 2? @"project_item_tag":
+                                                        @"project_item_mr_pr"):
+                               @"project_item_reading")
+                     andTitle:(indexPath.section == 2? (indexPath.row == 0? @"任务列表":
+                                                        @"任务看板"):
+//                               indexPath.section == 3? (indexPath.row == 0? @"讨论":
+                               indexPath.section == 3? (indexPath.row == 0? @"Wiki":
+                                                        @"文件"):
+                               indexPath.section == 4? (indexPath.row == 0? @"代码浏览":
+                                                        indexPath.row == 1? @"分支管理":
+                                                        indexPath.row == 2? @"发布管理":
+                                                        @"合并请求"):
+                               @"本地阅读")];
         }
-        FunctionTipsManager *ftm = [FunctionTipsManager shareManager];
-        NSString *tipStr = [self p_TipStrForIndexPath:indexPath];
-        if (tipStr && [ftm needToTip:tipStr]) {
-            [cell addTipIcon];
-        }
-        [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:50];
+//        FunctionTipsManager *ftm = [FunctionTipsManager shareManager];
+//        NSString *tipStr = [self p_TipStrForIndexPath:indexPath];
+//        if (tipStr && [ftm needToTip:tipStr]) {
+//            [cell addTipIcon];
+//        }
+        [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:52];
         return cell;
     }
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+//    current_user_role_id = 75 是受限成员，不可访问代码
     CGFloat cellHeight = 0;
     if (indexPath.section == 0) {
         cellHeight = indexPath.row == 0? [ProjectInfoCell cellHeight]: [ProjectDescriptionCell cellHeightWithObj:_myProject];
@@ -240,63 +273,116 @@
 //selected
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    
-    if (indexPath.section == 0 && indexPath.row == 0) {
-        // 如果是自己的项目才能进入设置
-        if ([self.myProject.owner_id isEqual:[Login curLoginUser].id]) {
+    if (indexPath.section == 0) {
+        if (indexPath.row == 0) {
             UIStoryboard *storyboard = [UIStoryboard storyboardWithName:@"ProjectSetting" bundle:nil];
-            UIViewController *vc = [storyboard instantiateViewControllerWithIdentifier:@"ProjectSettingVC"];
+            UIViewController *vc = [storyboard instantiateViewControllerWithIdentifier:@"Entrance"];
             [vc setValue:self.myProject forKey:@"project"];
             [self.navigationController pushViewController:vc animated:YES];
         }
-    }else if (indexPath.section == 1){
-        [self goToIndex:indexPath.row];
-    }else if (indexPath.section == 2){
-        if (indexPath.row == 0) {
-            [self goToReadme];
-        }else if (indexPath.row == 1){
-            [self goTo_MR_PR];
+    }else if (_myProject.is_public.boolValue){
+        if (indexPath.section == 1) {
+            if (indexPath.row == 0) {
+                [self goToProjectType:ProjectViewTypeActivities];
+            }else if (indexPath.row == 1){
+                [self goToProjectType:ProjectViewTypeTopics];
+            }else if (indexPath.row == 2){
+                [self goToProjectType:ProjectViewTypeCodes];
+            }else{
+                [self goToProjectType:ProjectViewTypeMembers];
+            }
+        }else if (indexPath.section == 2){
+            if (indexPath.row == 0) {
+                [self goToReadme];
+            }else{
+                [self goTo_MR_PR];
+            }
+        }else{
+            [self goToLocalRepo];
+        }
+    }else{
+        if (indexPath.section == 1) {
+            [self goToProjectType:ProjectViewTypeActivities];
+        }else if (indexPath.section == 2){
+            if (indexPath.row == 0) {
+                [self goToProjectType:ProjectViewTypeTasks];
+            }else{
+                [self goToTaskBoards];
+            }
+        }else if (indexPath.section == 3){
+            if (indexPath.row == 0) {
+//                [self goToProjectType:ProjectViewTypeTopics];
+                [self goToWiki];
+            }else{
+                [self goToProjectType:ProjectViewTypeFiles];
+            }
+        }else if (indexPath.section == 4){
+            if (indexPath.row == 0) {
+                [self goToProjectType:ProjectViewTypeCodes];
+            }else if (indexPath.row == 1){
+                [self goToBranchList];
+            }else if (indexPath.row == 2){
+                [self goToReleaseList];
+            }else{
+                [self goTo_MR_PR];
+            }
+        }else{
+            [self goToLocalRepo];
         }
     }
-    
-    FunctionTipsManager *ftm = [FunctionTipsManager shareManager];
-    NSString *tipStr = [self p_TipStrForIndexPath:indexPath];
-    if (tipStr && [ftm needToTip:tipStr]) {
-        [ftm markTiped:tipStr];
-        NProjectItemCell *cell = (NProjectItemCell *)[tableView cellForRowAtIndexPath:indexPath];
-        [cell removeTip];
-    }
+//    FunctionTipsManager *ftm = [FunctionTipsManager shareManager];
+//    NSString *tipStr = [self p_TipStrForIndexPath:indexPath];
+//    if (tipStr && [ftm needToTip:tipStr]) {
+//        [ftm markTiped:tipStr];
+//        NProjectItemCell *cell = (NProjectItemCell *)[tableView cellForRowAtIndexPath:indexPath];
+//        [cell removeTip];
+//    }
 }
 
 - (NSString *)p_TipStrForIndexPath:(NSIndexPath *)indexPath{
     NSString *tipStr = nil;
-    if (indexPath.section == 1) {
-        if (!_myProject.is_public.boolValue && indexPath.row == 3) {
-            tipStr = kFunctionTipStr_File_2V;
-        }
-    }else if (indexPath.section == 2){
-        if (indexPath.row == 1) {
-            tipStr = kFunctionTipStr_LineNote_MRPR;
-        }
-    }
     return tipStr;
 }
 
 #pragma mark goTo VC
-- (void)goToIndex:(NSInteger)index{
-    if (index == 0) {
-        __weak typeof(self) weakSelf = self;
-        [[Coding_NetAPIManager sharedManager] request_Project_UpdateVisit_WithObj:_myProject andBlock:^(id data, NSError *error) {
-            if (data) {
-                weakSelf.myProject.un_read_activities_count = [NSNumber numberWithInteger:0];
-            }
-        }];
-    }
-    ProjectViewController *vc = [[ProjectViewController alloc] init];
+
+- (void)goToTaskBoards{
+    TaskBoardsViewController *vc = [TaskBoardsViewController new];
     vc.myProject = self.myProject;
-    vc.curIndex = index;
     [self.navigationController pushViewController:vc animated:YES];
 }
+
+- (void)goToProjectType:(ProjectViewType)type{
+    __weak typeof(self) weakSelf = self;
+    [[Coding_NetAPIManager sharedManager] request_Project_UpdateVisit_WithObj:_myProject andBlock:^(id data, NSError *error) {
+        if (data) {
+            weakSelf.myProject.un_read_activities_count = [NSNumber numberWithInteger:0];
+        }
+    }];
+    ProjectViewController *vc = [[ProjectViewController alloc] init];
+    vc.myProject = self.myProject;
+    vc.curType = type;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+- (void)goToWiki{
+    WikiViewController *vc = [WikiViewController new];
+    vc.myProject = self.myProject;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+- (void)goToBranchList{
+    EACodeBranchListViewController *vc = [EACodeBranchListViewController new];
+    vc.myProject = self.myProject;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+- (void)goToReleaseList{
+    EACodeReleaseListViewController *vc = [EACodeReleaseListViewController new];
+    vc.myProject = self.myProject;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
 - (void)gotoPro:(Project *)project{
     NProjectViewController *vc = [[NProjectViewController alloc] init];
     vc.myProject = project;
@@ -310,15 +396,42 @@
 }
 
 - (void)goTo_MR_PR{
-    if (_myProject.is_public.boolValue) {
-        PRListViewController *vc = [[PRListViewController alloc] init];
-        vc.curProject = self.myProject;
+    MRPRListViewController *vc = [[MRPRListViewController alloc] init];
+    vc.curProject = self.myProject;
+    vc.isMR = !_myProject.is_public.boolValue;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+- (void)goToLocalRepo{
+    if (_myProject.isLocalRepoExist) {
+        EALocalCodeListViewController *vc = [EALocalCodeListViewController new];
+        vc.curPro = _myProject;
+        vc.curRepo = _myProject.localRepo;
+        vc.curURL = _myProject.localURL;
         [self.navigationController pushViewController:vc animated:YES];
     }else{
-        MRListViewController *vc = [[MRListViewController alloc] init];
-        vc.curProject = self.myProject;
-        [self.navigationController pushViewController:vc animated:YES];
+        __weak typeof(self) weakSelf = self;
+        [[UIAlertController ea_actionSheetCustomWithTitle:@"本地阅读需要先 clone 代码，过程可能比较耗时，且不可中断，是否确认要 clone 代码？" buttonTitles:@[@"Clone"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
+            if (index == 0) {
+                [weakSelf cloneRepo];
+            }
+        }] showInView:self.view];
     }
+}
+
+- (void)cloneRepo{
+    __weak typeof(self) weakSelf = self;
+    MBProgressHUD *hud = [NSObject showHUDQueryStr:@"正在 clone..."];
+    [_myProject gitCloneBlock:^(GTRepository *repo, NSError *error) {
+        [NSObject hideHUDQuery];
+        if (error) {
+            [NSObject showError:error];
+        }else{
+            [weakSelf goToLocalRepo];
+        }
+    } progressBlock:^(const git_transfer_progress *progress, BOOL *stop) {
+        hud.detailsLabelText = [NSString stringWithFormat:@"%d / %d", progress->received_objects, progress->total_objects];
+    }];
 }
 
 #pragma mark Git_Btn
@@ -345,7 +458,7 @@
             break;
         default://Fork
         {
-            [[UIActionSheet bk_actionSheetCustomWithTitle:@"fork将会将此项目复制到您的个人空间，确定要fork吗?" buttonTitles:@[@"确定"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+            [[UIAlertController ea_actionSheetCustomWithTitle:@"fork将会将此项目复制到您的个人空间，确定要fork吗?" buttonTitles:@[@"确定"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
                 if (index == 0) {
                     [[Coding_NetAPIManager sharedManager] request_ForkProject:_myProject andBlock:^(id data, NSError *error) {
                         [weakSelf refreshGitButtonsView];

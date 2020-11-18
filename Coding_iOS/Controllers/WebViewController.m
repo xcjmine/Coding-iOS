@@ -76,9 +76,11 @@
     CGRect barFrame = CGRectMake(0, navigaitonBarBounds.size.height - progressBarHeight, navigaitonBarBounds.size.width, progressBarHeight);
     _progressView = [[NJKWebViewProgressView alloc] initWithFrame:barFrame];
     _progressView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
-    _progressView.progressBarView.backgroundColor = [UIColor colorWithHexString:@"0x3abd79"];
-    
-    [self.navigationItem setRightBarButtonItem:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"moreBtn_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(shareItemClicked)] animated:YES];
+    _progressView.progressBarView.backgroundColor = kColorLightBlue;
+
+    if (!kTarget_Enterprise) {//企业版不支持分享
+        [self.navigationItem setRightBarButtonItem:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"moreBtn_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(shareItemClicked)] animated:YES];
+    }
 }
 
 - (void)viewWillAppear:(BOOL)animated{

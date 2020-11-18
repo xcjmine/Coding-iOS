@@ -5,45 +5,35 @@
 //  Created by Ease on 15/6/1.
 //  Copyright (c) 2015年 Coding. All rights reserved.
 //
-
-#define kMRPRDetailViewController_BottomViewHeight 49.0
-
+#define kMRPRDetailViewController_BottomViewHeight 56.0
 #import "PRDetailViewController.h"
 #import "Coding_NetAPIManager.h"
 #import "FunctionTipsManager.h"
 #import "ODRefreshControl.h"
-
 #import "MRPRTopCell.h"
 #import "MRPRDetailCell.h"
 #import "MRPRDisclosureCell.h"
 #import "MRPRCommentCell.h"
 #import "AddCommentCell.h"
-
 #import "WebViewController.h"
 #import "MJPhotoBrowser.h"
-
 #import "MRPRCommitsViewController.h"
 #import "MRPRFilesViewController.h"
 #import "AddMDCommentViewController.h"
 #import "MRPRAcceptViewController.h"
-
 #import "UIView+PressMenu.h"
-
 typedef NS_ENUM(NSInteger, MRPRAction) {
     MRPRActionAccept = 1000,
     MRPRActionRefuse,
     MRPRActionCancel
 };
-
 @interface PRDetailViewController ()<UITableViewDataSource, UITableViewDelegate, TTTAttributedLabelDelegate>
 @property (strong, nonatomic) MRPRBaseInfo *curMRPRInfo;
 @property (strong, nonatomic) UITableView *myTableView;
 @property (nonatomic, strong) ODRefreshControl *myRefreshControl;
 @property (strong, nonatomic) UIView *bottomView;
 @end
-
 @implementation PRDetailViewController
-
 + (PRDetailViewController *)vcWithPath:(NSString *)path{
     
     NSArray *pathComponents = [path componentsSeparatedByString:@"/"];
@@ -55,7 +45,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
     vc.curMRPR = [MRPR new];
     vc.curMRPR.path = path;
     vc.curMRPR.iid = [NSNumber numberWithInteger:[(NSString *)pathComponents.lastObject integerValue]];
-
     return vc;
 }
 - (void)viewDidLoad{
@@ -80,17 +69,18 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _myRefreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];
     [_myRefreshControl addTarget:self action:@selector(refresh) forControlEvents:UIControlEventValueChanged];
     [self refresh];
 }
-
 - (void)configBottomView{
     BOOL canCancel = [_curMRPRInfo.mrpr.author.global_key isEqualToString:[Login curLoginUser].global_key];
     BOOL canAction = _curMRPRInfo.can_edit.boolValue ||(canCancel && _curMRPRInfo.mrpr.granted.boolValue);//有权限 || （作者身份 && 被授权）
-
     BOOL hasBottomView = _curMRPRInfo.mrpr.status <= MRPRStatusCannotMerge && (canAction || canCancel);
     
     if (!hasBottomView) {
@@ -109,7 +99,7 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
             NSArray *buttonArray;
             if (canAction && canCancel) {//三个按钮
                 buttonArray = @[[self buttonWithType:MRPRActionAccept],
-                                [self buttonWithType:MRPRActionRefuse],
+//                                [self buttonWithType:MRPRActionRefuse],
                                 [self buttonWithType:MRPRActionCancel]];
             }else if (canAction && !canCancel){//两个按钮
                 buttonArray = @[[self buttonWithType:MRPRActionAccept],
@@ -120,7 +110,7 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
                 buttonArray = nil;
             }
             if (buttonArray.count > 0) {
-                CGFloat buttonHeight = 29;
+                CGFloat buttonHeight = 36;
                 CGFloat padding = 15;
                 CGFloat buttonWidth = ((kScreen_Width - 2*kPaddingLeftWidth) - padding* (buttonArray.count -1))/buttonArray.count;
                 CGFloat buttonY = (kMRPRDetailViewController_BottomViewHeight - buttonHeight)/2;
@@ -135,7 +125,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
     _myTableView.contentInset = insets;
     _myTableView.scrollIndicatorInsets = insets;
 }
-
 - (void)refresh{
     if (_curMRPR.isLoading) {
         return;
@@ -175,44 +164,38 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
         }];
     }
 }
-
 #pragma mark Action_MRPR
-
 - (UIButton *)buttonWithType:(MRPRAction)actionType{
     UIButton *curButton = [UIButton new];
     curButton.layer.cornerRadius = 2.0;
     curButton.tag = actionType;
     [curButton addTarget:self action:@selector(actionMRPR:) forControlEvents:UIControlEventTouchUpInside];
-    [curButton.titleLabel setFont:[UIFont systemFontOfSize:13]];
-    
+    [curButton.titleLabel setFont:[UIFont systemFontOfSize:15]];
     NSString *title, *colorStr;
     if (actionType == MRPRActionAccept) {
         title = @"合并";
-        colorStr = @"0x4E90BF";
+        colorStr = @"0x425063";
         if (_curMRPRInfo.mrpr.status == MRPRStatusCannotMerge) {
             curButton.alpha = 0.5;
         }
-    }else if (actionType == MRPRActionRefuse){
+    } else if (actionType == MRPRActionRefuse){
         title = @"拒绝";
-        colorStr = @"0xE15957";
-    }else if (actionType == MRPRActionCancel){
+        colorStr = @"0xF56061";
+    } else if (actionType == MRPRActionCancel){
         title = @"取消";
-        colorStr = @"0xF8F8F8";
-        [curButton doBorderWidth:0.5 color:[UIColor colorWithHexString:@"0xB5B5B5"] cornerRadius:2.0];
+        colorStr = @"0xD8DDE4";
     }
-    [curButton setTitleColor:[UIColor colorWithHexString:(actionType == MRPRActionCancel? @"0x222222": @"0xffffff")] forState:UIControlStateNormal];
+    [curButton setTitleColor:[UIColor colorWithHexString:(actionType == MRPRActionCancel? @"0x323A45": @"0xFFFFFF")] forState:UIControlStateNormal];
     [curButton setTitle:title forState:UIControlStateNormal];
     [curButton setBackgroundColor:[UIColor colorWithHexString:colorStr]];
     return curButton;
 }
-
 - (void)actionMRPR:(UIButton *)sender{
     __weak typeof(self) weakSelf = self;
-
     NSString *tipStr;
     if (sender.tag == MRPRActionAccept) {//合并
         if (_curMRPRInfo.mrpr.status == MRPRStatusCannotMerge) {//不能合并
-            tipStr = @"Coding 不能帮你在线自动合并这个合并请求。";
+            tipStr = @"CODING 不能帮你在线自动合并这个合并请求。";
             kTipAlert(@"%@", tipStr);
         }else{
             MRPRAcceptViewController *vc = [MRPRAcceptViewController new];
@@ -227,21 +210,20 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
         }
     }else if (sender.tag == MRPRActionRefuse){//拒绝
         tipStr = [_curMRPRInfo.mrpr isMR]? @"确定要拒绝这个 Merge Request 么？": @"确定要拒绝这个 Pull Request 么？";
-        [[UIActionSheet bk_actionSheetCustomWithTitle:tipStr buttonTitles:@[@"确定"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        [[UIAlertController ea_actionSheetCustomWithTitle:tipStr buttonTitles:@[@"确定"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [weakSelf refuseMRPR];
             }
         }] showInView:self.view];
     }else if (sender.tag == MRPRActionCancel){//取消
         tipStr = [_curMRPRInfo.mrpr isMR]? @"确定要取消这个 Merge Request 么？": @"确定要取消这个 Pull Request 么？";
-        [[UIActionSheet bk_actionSheetCustomWithTitle:tipStr buttonTitles:@[@"确定"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        [[UIAlertController ea_actionSheetCustomWithTitle:tipStr buttonTitles:@[@"确定"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [weakSelf cancelMRPR];
             }
         }] showInView:self.view];
     }
 }
-
 - (void)refuseMRPR{
     __weak typeof(self) weakSelf = self;
     [[Coding_NetAPIManager sharedManager] request_MRPRRefuse:_curMRPRInfo.mrpr andBlock:^(id data, NSError *error) {
@@ -252,7 +234,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
         }
     }];
 }
-
 - (void)cancelMRPR{
     __weak typeof(self) weakSelf = self;
     [[Coding_NetAPIManager sharedManager] request_MRPRCancel:_curMRPRInfo.mrpr andBlock:^(id data, NSError *error) {
@@ -263,21 +244,18 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
         }
     }];
 }
-
 #pragma mark TableM Footer Header
 - (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section{
-    return 20.0;
+    return 15.0;
 }
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section{
     return 0.5;
 }
-
 - (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section{
     UIView *view = [UIView new];
     view.backgroundColor = kColorTableSectionBg;
     return view;
 }
-
 #pragma mark TableM
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
     return _curMRPRInfo == nil? 0: _curMRPRInfo.discussions.count <= 0? 3: 4;
@@ -293,7 +271,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
     }
     return row;
 }
-
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
     __weak typeof(self) weakSelf = self;
     if (indexPath.section == 0) {//Content
@@ -319,9 +296,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
             [cell setImageStr:@"mrpr_icon_commit" andTitle:@"提交记录"];
         }else{
             [cell setImageStr:@"mrpr_icon_fileChange" andTitle:@"文件改动"];
-            if ([[FunctionTipsManager shareManager] needToTip:kFunctionTipStr_LineNote_FileChange]) {
-                [cell addTipIcon];
-            }
         }
         [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:50];
         return cell;
@@ -356,7 +330,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
     }
     return cellHeight;
 }
-
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
     if (indexPath.section == 0) {//Content
@@ -372,12 +345,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
             vc.curMRPRInfo = _curMRPRInfo;
             vc.curProject = _curProject;
             [self.navigationController pushViewController:vc animated:YES];
-            if ([[FunctionTipsManager shareManager] needToTip:kFunctionTipStr_LineNote_FileChange]) {
-                [[FunctionTipsManager shareManager] markTiped:kFunctionTipStr_LineNote_FileChange];
-                [[FunctionTipsManager shareManager] markTiped:kFunctionTipStr_LineNote_MRPR];
-                NProjectItemCell *cell = (NProjectItemCell *)[tableView cellForRowAtIndexPath:indexPath];
-                [cell removeTip];
-            }
         }
     }else if (_curMRPRInfo.discussions.count > 0 && indexPath.section == 2){//Comment
         ProjectLineNote *curCommentItem = [[_curMRPRInfo.discussions objectAtIndex:indexPath.row] firstObject];
@@ -406,7 +373,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
         [self goToAddCommentVCToUser:nil];
     }
 }
-
 #pragma mark Comment
 - (void)goToAddCommentVCToUser:(NSString *)userName{
     DebugLog(@"%@", userName);
@@ -416,8 +382,8 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
     vc.requestPath = [NSString stringWithFormat:@"api/user/%@/project/%@/git/line_notes", _curMRPR.des_owner_name, _curMRPR.des_project_name];
     vc.requestParams = [@{
                           @"noteable_type" : [self.curMRPRInfo.mrpr isMR]? @"MergeRequestBean" : @"PullRequestBean",
-                         @"noteable_id" : _curMRPRInfo.mrpr.id,
-                         } mutableCopy];
+                          @"noteable_id" : _curMRPRInfo.mrpr.id,
+                          } mutableCopy];
     vc.contentStr = userName.length > 0? [NSString stringWithFormat:@"@%@ ", userName]: nil;
     @weakify(self);
     vc.completeBlock = ^(id data){
@@ -430,7 +396,6 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
     
     [self.navigationController pushViewController:vc animated:YES];
 }
-
 - (void)deleteComment:(ProjectLineNote *)lineNote{
     __weak typeof(self) weakSelf = self;
     [[Coding_NetAPIManager sharedManager] request_DeleteLineNote:lineNote.id inProject:_curMRPRInfo.mrpr.des_project_name ofUser:_curMRPRInfo.mrpr.des_owner_name andBlock:^(id data, NSError *error) {
@@ -440,15 +405,12 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
         }
     }];
 }
-
-
 #pragma mark loadCellRequest
 - (void)loadRequest:(NSURLRequest *)curRequest
 {
     NSString *linkStr = curRequest.URL.absoluteString;
     [self analyseLinkStr:linkStr];
 }
-
 - (void)analyseLinkStr:(NSString *)linkStr
 {
     if (linkStr.length <= 0) {
@@ -474,12 +436,9 @@ typedef NS_ENUM(NSInteger, MRPRAction) {
         [self.navigationController pushViewController:webVc animated:YES];
     }
 }
-
 #pragma mark TTTAttributedLabelDelegate
 - (void)attributedLabel:(TTTAttributedLabel *)label didSelectLinkWithTransitInformation:(NSDictionary *)components{
     HtmlMediaItem *clickedItem = [components objectForKey:@"value"];
     [self analyseLinkStr:clickedItem.href];
 }
-
-
 @end

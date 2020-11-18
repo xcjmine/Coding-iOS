@@ -36,6 +36,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     self.myTableView.tableHeaderView = [self customHeaderView];
@@ -52,10 +55,10 @@
     UILabel *headerLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, kScreen_Width, 50)];
     headerLabel.backgroundColor = [UIColor clearColor];
     headerLabel.font = [UIFont boldSystemFontOfSize:12];
-    headerLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+    headerLabel.textColor = kColor999;
     headerLabel.numberOfLines = 0;
     headerLabel.textAlignment = NSTextAlignmentCenter;
-    headerLabel.text = @"您还未设置过用户名（个性后缀）\n设置后才能正常登录！";
+    headerLabel.text = @"您还未设置过用户名\n设置后才能正常登录！";
     [headerLabel setCenter:headerV.center];
     [headerV addSubview:headerLabel];
     return headerV;
@@ -89,7 +92,7 @@
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
     Input_OnlyText_Cell *cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_Input_OnlyText_Cell_Text forIndexPath:indexPath];
     __weak typeof(self) weakSelf = self;
-    [cell setPlaceholder:@" 用户名（个性后缀）" value:self.global_key];
+    [cell setPlaceholder:@" 用户名" value:self.global_key];
     cell.textValueChangedBlock = ^(NSString *valueStr){
         weakSelf.global_key = valueStr;
     };
@@ -98,6 +101,6 @@
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
-    return 44.0;
+    return 50;
 }
 @end

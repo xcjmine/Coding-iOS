@@ -53,7 +53,6 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
 @property (strong, nonatomic) NSMutableArray *mediaList, *uploadMediaList;
 
 @property (strong, nonatomic) UIButton *addButton, *emotionButton, *photoButton, *voiceButton;
-@property (strong, nonatomic) UIView *voiceRedpointView;
 
 @property (assign, nonatomic) CGFloat viewHeightOld;
 
@@ -71,7 +70,7 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     CGFloat oldheightToBottom = kScreen_Height - CGRectGetMinY(self.frame);
     CGFloat newheightToBottom = kScreen_Height - CGRectGetMinY(frame);
     [super setFrame:frame];
-    if (fabs(oldheightToBottom - newheightToBottom) > 0.1) {
+    if (fabs(oldheightToBottom - newheightToBottom) > 1.0) {
         DebugLog(@"heightToBottom-----:%.2f", newheightToBottom);
         if (oldheightToBottom > newheightToBottom) {//降下去的时候保存
             [self saveInputStr];
@@ -81,6 +80,13 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
             [self.delegate messageInputView:self heightToBottomChenged:newheightToBottom];
         }
     }
+}
+
+- (void)p_setY:(CGFloat)y{
+    if (ABS(kScreen_Height - CGRectGetHeight(self.frame) - y) < 1.0) {
+        y -= kSafeArea_Bottom;
+    }
+    [self setY:y];
 }
 
 - (void)setInputState:(UIMessageInputViewState)inputState{
@@ -126,8 +132,8 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     }
 }
 - (void)setPlaceHolder:(NSString *)placeHolder{
+    _placeHolder = placeHolder;
     if (_inputTextView && ![_inputTextView.placeholder isEqualToString:placeHolder]) {
-        _placeHolder = placeHolder;
         _inputTextView.placeholder = placeHolder;
     }
 }
@@ -152,14 +158,23 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     self = [super initWithFrame:frame];
     if (self) {
         // Initialization code
-        self.backgroundColor = [UIColor colorWithHexString:@"0xf8f8f8"];
-        [self addLineUp:YES andDown:NO andColor:[UIColor lightGrayColor]];
+        self.backgroundColor = kColorNavBG;
+        [self addLineUp:YES andDown:NO andColor:kColorCCC];
         _viewHeightOld = CGRectGetHeight(frame);
         _inputState = UIMessageInputViewStateSystem;
         _isAlwaysShow = NO;
         _curProject = nil;
         UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(didPan:)];
         [self addGestureRecognizer:panGesture];
+        //补个底色背景
+        UIView *bottomV = [UIView new];
+        bottomV.backgroundColor = self.backgroundColor;
+        [self addSubview:bottomV];
+        [bottomV mas_makeConstraints:^(MASConstraintMaker *make) {
+            make.height.mas_equalTo(kSafeArea_Bottom + kKeyboardView_Height);
+            make.top.equalTo(self.mas_bottom);
+            make.left.right.equalTo(self);
+        }];
     }
     return self;
 }
@@ -268,10 +283,11 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     _toUser = toUser;
     NSString *inputStr = [self inputStr];
     if (_inputTextView) {
+
         if (_contentType != UIMessageInputViewContentTypePriMsg) {
-            self.placeHolder = _toUser? [NSString stringWithFormat:@"回复 %@", _toUser.name]: @"撰写评论";
+            _inputTextView.placeholder = _toUser? [NSString stringWithFormat:@"回复 %@", _toUser.name]: _placeHolder;
         }else{
-            self.placeHolder = @"请输入私信内容";
+            self.placeHolder = _placeHolder;
         }
         _inputTextView.selectedRange = NSMakeRange(0, _inputTextView.text.length);
         [_inputTextView insertText:inputStr? inputStr: @""];
@@ -286,7 +302,7 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     if ([self superview] == kKeyWindow) {
         return;
     }
-    [self setY:kScreen_Height];
+    [self p_setY:kScreen_Height];
     [kKeyWindow addSubview:self];
     [kKeyWindow addSubview:_emojiKeyboardView];
     [kKeyWindow addSubview:_addKeyboardView];
@@ -295,7 +311,7 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     
     if (_isAlwaysShow && ![self isCustomFirstResponder]) {
         [UIView animateWithDuration:0.25 animations:^{
-            [self setY:kScreen_Height - CGRectGetHeight(self.frame)];
+            [self p_setY:kScreen_Height - CGRectGetHeight(self.frame)];
         }];
     }
 }
@@ -305,7 +321,7 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     }
     [self isAndResignFirstResponder];
     [UIView animateWithDuration:0.25 delay:0.0 options:UIViewAnimationOptionTransitionFlipFromBottom animations:^{
-        [self setY:kScreen_Height];
+        [self p_setY:kScreen_Height];
     } completion:^(BOOL finished) {
         [_emojiKeyboardView removeFromSuperview];
         [_addKeyboardView removeFromSuperview];
@@ -330,9 +346,9 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
             [_addKeyboardView setY:kScreen_Height];
             [_voiceKeyboardView setY:kScreen_Height];
             if (self.isAlwaysShow) {
-                [self setY:kScreen_Height- CGRectGetHeight(self.frame)];
+                [self p_setY:kScreen_Height- CGRectGetHeight(self.frame)];
             }else{
-                [self setY:kScreen_Height];
+                [self p_setY:kScreen_Height];
             }
         } completion:^(BOOL finished) {
             self.inputState = UIMessageInputViewStateSystem;
@@ -352,6 +368,10 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     return ([_inputTextView isFirstResponder] || self.inputState == UIMessageInputViewStateAdd || self.inputState == UIMessageInputViewStateEmotion || self.inputState == UIMessageInputViewStateVoice);
 }
 
+- (CGFloat)heightWithSafeArea{
+    return CGRectGetHeight(self.frame) + kSafeArea_Bottom;
+}
+
 + (instancetype)messageInputViewWithType:(UIMessageInputViewContentType)type{
     return [self messageInputViewWithType:type placeHolder:nil];
 }
@@ -361,7 +381,7 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     if (placeHolder) {
         messageInputView.placeHolder = placeHolder;
     }else{
-        messageInputView.placeHolder = @"说点什么吧...";
+        messageInputView.placeHolder = @"撰写评论";
     }
     return messageInputView;
 }
@@ -393,7 +413,7 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
             hasAddBtn = YES;
             hasPhotoBtn = NO;
             showBigEmotion = YES;
-            hasVoiceBtn = YES;
+            hasVoiceBtn = [NSObject isPrivateCloud].boolValue? NO: YES;
         }
             break;
         case UIMessageInputViewContentTypeTopic:
@@ -523,14 +543,6 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
         [_voiceButton setImage:[UIImage imageNamed:@"keyboard_voice"] forState:UIControlStateNormal];
         [_voiceButton addTarget:self action:@selector(voiceButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:_voiceButton];
-        
-        if ([[FunctionTipsManager shareManager] needToTip:kFunctionTipStr_VoiceMessage]) {
-            _voiceRedpointView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 7, 7)];
-            _voiceRedpointView.center = CGPointMake(31, 5);
-            _voiceRedpointView.backgroundColor = [UIColor colorWithRGBHex:0xf75288];
-            _voiceRedpointView.layer.cornerRadius = _voiceRedpointView.frame.size.width/2;
-            [_voiceButton addSubview:_voiceRedpointView];
-        }
     }
     _voiceButton.hidden = !hasVoiceBtn;
     
@@ -658,26 +670,17 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     //        显示大图
     int count = (int)_mediaList.count;
     NSMutableArray *photos = [NSMutableArray arrayWithCapacity:count];
-    
-    ALAssetsLibrary *assetsLibrary = [[ALAssetsLibrary alloc] init];
     for (int i = 0; i<count; i++) {
         UIMessageInputView_Media *mediaItem = [_mediaList objectAtIndex:i];
         MJPhoto *photo = [[MJPhoto alloc] init];
-        
-        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
-        dispatch_queue_t queue = dispatch_queue_create("MJPhotoBrowserForAsset", DISPATCH_QUEUE_SERIAL);
-        dispatch_async(queue, ^{
-            [assetsLibrary assetForURL:mediaItem.assetURL resultBlock:^(ALAsset *asset) {
-                mediaItem.curAsset = asset;
-                photo.image = [UIImage imageWithCGImage:asset.defaultRepresentation.fullScreenImage];
-                dispatch_semaphore_signal(semaphore);
-            } failureBlock:^(NSError *error) {
-                mediaItem.curAsset = nil;
-                photo.url = [NSURL URLWithString:mediaItem.urlStr]; // 图片路径
-                dispatch_semaphore_signal(semaphore);
-            }];
-        });
-        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        PHAsset *asset = [PHAsset assetWithLocalIdentifier:mediaItem.assetID];
+        if (asset) {
+            mediaItem.curAsset = asset;
+            photo.image = asset.loadImage;
+        }else{
+            mediaItem.curAsset = nil;
+            photo.url = [NSURL URLWithString:mediaItem.urlStr]; // 图片路径
+        }
         [photos addObject:photo];
     }
     // 2.显示相册
@@ -696,14 +699,14 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     }else{
         self.inputState = UIMessageInputViewStateAdd;
         [_inputTextView resignFirstResponder];
-        endY = kScreen_Height - kKeyboardView_Height;
+        endY = kScreen_Height - kKeyboardView_Height - kSafeArea_Bottom;
     }
     [UIView animateWithDuration:0.25 delay:0.0f options:UIViewAnimationOptionTransitionFlipFromBottom animations:^{
         [_addKeyboardView setY:endY];
         [_emojiKeyboardView setY:kScreen_Height];
         [_voiceKeyboardView setY:kScreen_Height];
-        if (ABS(kScreen_Height - endY) > 0.1) {
-            [self setY:endY- CGRectGetHeight(self.frame)];
+        if (ABS(kScreen_Height - endY) > 1.0) {
+            [self p_setY:endY- CGRectGetHeight(self.frame)];
         }
     } completion:^(BOOL finished) {
     }];
@@ -716,14 +719,14 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     }else{
         self.inputState = UIMessageInputViewStateEmotion;
         [_inputTextView resignFirstResponder];
-        endY = kScreen_Height - kKeyboardView_Height;
+        endY = kScreen_Height - kKeyboardView_Height - kSafeArea_Bottom;
     }
     [UIView animateWithDuration:0.25 delay:0.0f options:UIViewAnimationOptionTransitionFlipFromBottom animations:^{
         [_emojiKeyboardView setY:endY];
         [_addKeyboardView setY:kScreen_Height];
         [_voiceKeyboardView setY:kScreen_Height];
-        if (ABS(kScreen_Height - endY) > 0.1) {
-            [self setY:endY- CGRectGetHeight(self.frame)];
+        if (ABS(kScreen_Height - endY) > 1.0) {
+            [self p_setY:endY- CGRectGetHeight(self.frame)];
         }
     } completion:^(BOOL finished) {
     }];
@@ -735,12 +738,11 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     }
     [self isAndResignFirstResponder];
     QBImagePickerController *imagePickerController = [[QBImagePickerController alloc] init];
-    imagePickerController.filterType = QBImagePickerControllerFilterTypePhotos;
+    imagePickerController.mediaType = QBImagePickerMediaTypeImage;
     imagePickerController.delegate = self;
     imagePickerController.allowsMultipleSelection = YES;
     imagePickerController.maximumNumberOfSelection = 6;
-    UINavigationController *navigationController = [[BaseNavigationController alloc] initWithRootViewController:imagePickerController];
-    [[BaseViewController presentingVC] presentViewController:navigationController animated:YES completion:^{
+    [[BaseViewController presentingVC] presentViewController:imagePickerController animated:YES completion:^{
     }];
 }
 
@@ -752,24 +754,17 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     } else {
         self.inputState = UIMessageInputViewStateVoice;
         [_inputTextView resignFirstResponder];
-        endY = kScreen_Height - kKeyboardView_Height;
+        endY = kScreen_Height - kKeyboardView_Height - kSafeArea_Bottom;
     }
     [UIView animateWithDuration:0.25 delay:0.0f options:UIViewAnimationOptionTransitionFlipFromBottom animations:^{
         [_voiceKeyboardView setY:endY];
         [_emojiKeyboardView setY:kScreen_Height];
         [_addKeyboardView setY:kScreen_Height];
-        if (ABS(kScreen_Height - endY) > 0.1) {
-            [self setY:endY- CGRectGetHeight(self.frame)];
+        if (ABS(kScreen_Height - endY) > 1.0) {
+            [self p_setY:endY- CGRectGetHeight(self.frame)];
         }
     } completion:^(BOOL finished) {
     }];
-    
-    if (_voiceRedpointView) {
-        [_voiceRedpointView removeFromSuperview];
-        self.voiceRedpointView = nil;
-        
-        [[FunctionTipsManager shareManager] markTiped:kFunctionTipStr_VoiceMessage];
-    }
 }
 
 - (void)arrowButtonClicked:(id)sender {
@@ -777,10 +772,10 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
 }
 
 #pragma mark QBImagePickerControllerDelegate
-- (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didSelectAssets:(NSArray *)assets{
+- (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didFinishPickingAssets:(NSArray *)assets{
     
     _uploadMediaList = [[NSMutableArray alloc] initWithCapacity:assets.count];
-    for (ALAsset *asset in assets) {
+    for (PHAsset *asset in assets) {
         [_uploadMediaList addObject:[UIMessageInputView_Media mediaWithAsset:asset urlStr:nil]];
     }
     [self doUploadMediaList];
@@ -810,7 +805,7 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
 
 - (void)doUploadMedia:(UIMessageInputView_Media *)media withIndex:(NSInteger)index{
     //保存到app内
-    NSString* originalFileName = [[media.curAsset defaultRepresentation] filename];
+    NSString* originalFileName = media.curAsset.fileName;;
     NSString *fileName = [NSString stringWithFormat:@"%@|||%@|||%@", self.curProject.id.stringValue, @"0", originalFileName];
     
     if ([Coding_FileManager writeUploadDataWithName:fileName andAsset:media.curAsset]) {
@@ -959,9 +954,9 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
     if (self.inputState == UIMessageInputViewStateSystem) {
         [UIView animateWithDuration:0.25 delay:0.0f options:UIViewAnimationOptionTransitionFlipFromBottom animations:^{
             if (_isAlwaysShow) {
-                [self setY:kScreen_Height- CGRectGetHeight(self.frame)];
+                [self p_setY:kScreen_Height- CGRectGetHeight(self.frame)];
             }else{
-                [self setY:kScreen_Height];
+                [self p_setY:kScreen_Height];
             }
         } completion:^(BOOL finished) {
         }];
@@ -978,24 +973,13 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
         CGRect keyboardEndFrame = [[userInfo objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue];
         CGFloat keyboardY =  keyboardEndFrame.origin.y;
 
-        CGFloat selfOriginY = keyboardY == kScreen_Height? self.isAlwaysShow? kScreen_Height - CGRectGetHeight(self.frame): kScreen_Height : keyboardY - CGRectGetHeight(self.frame);
-//        if (keyboardY == kScreen_Height) {
-//            if (self.isAlwaysShow) {
-//                selfOriginY = kScreen_Height- CGRectGetHeight(self.frame);
-//            }else{
-//                selfOriginY = kScreen_Height;
-//            }
-//        }else{
-//            selfOriginY = keyboardY-CGRectGetHeight(self.frame);
-//        }
+        CGFloat selfOriginY = keyboardY+1 > kScreen_Height? self.isAlwaysShow? kScreen_Height - CGRectGetHeight(self.frame): kScreen_Height : keyboardY - CGRectGetHeight(self.frame);
         if (selfOriginY == self.frame.origin.y) {
             return;
         }
-        
-        
         __weak typeof(self) weakSelf = self;
         void (^endFrameBlock)() = ^(){
-            [weakSelf setY:selfOriginY];
+            [weakSelf p_setY:selfOriginY];
         };
         if ([aNotification name] == UIKeyboardWillChangeFrameNotification) {
             NSTimeInterval animationDuration = [[userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey] doubleValue];
@@ -1013,9 +997,8 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
 
 - (void)emojiKeyBoardView:(AGEmojiKeyboardView *)emojiKeyBoardView didUseEmoji:(NSString *)emoji {
 
-    NSString *emotion_monkey = [emoji emotionMonkeyName];
+    NSString *emotion_monkey = [emoji emotionSpecailName];
     if (emotion_monkey) {
-        emotion_monkey = [NSString stringWithFormat:@" :%@: ", emotion_monkey];
         if (_delegate && [_delegate respondsToSelector:@selector(messageInputView:sendBigEmotion:)]) {
             [self.delegate messageInputView:self sendBigEmotion:emotion_monkey];
         }
@@ -1033,14 +1016,10 @@ static NSMutableDictionary *_inputStrDict, *_inputMediaDict;
 }
 
 - (UIImage *)emojiKeyboardView:(AGEmojiKeyboardView *)emojiKeyboardView imageForSelectedCategory:(AGEmojiKeyboardViewCategoryImage)category {
-    UIImage *img;
-    if (category == AGEmojiKeyboardViewCategoryImageEmoji) {
-        img = [UIImage imageNamed:@"keyboard_emotion_emoji"];
-    }else if (category == AGEmojiKeyboardViewCategoryImageMonkey){
-        img = [UIImage imageNamed:@"keyboard_emotion_monkey"];
-    }else{
-        img = [UIImage imageNamed:@"keyboard_emotion_monkey_gif"];
-    }
+    UIImage *img = [UIImage imageNamed:(category == AGEmojiKeyboardViewCategoryImageEmoji? @"keyboard_emotion_emoji":
+                                        category == AGEmojiKeyboardViewCategoryImageMonkey? @"keyboard_emotion_monkey":
+                                        category == AGEmojiKeyboardViewCategoryImageMonkey_Gif? @"keyboard_emotion_monkey_gif":
+                                        @"keyboard_emotion_emoji_code")] ?: [UIImage new];
     return img;
 }
 

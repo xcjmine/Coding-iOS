@@ -19,16 +19,17 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
+        self.clipsToBounds = self.contentView.clipsToBounds = YES;
         self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         if (!_iconView) {
-            _iconView = [[UIImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, 10, 24, 24)];
+            _iconView = [[UIImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, ([UserInfoIconCell cellHeight] - 22)/ 2, 22, 22)];
             [self.contentView addSubview:_iconView];
         }
         if (!_titleL) {
-            _titleL = [[UILabel alloc] initWithFrame:CGRectMake(CGRectGetMaxX(_iconView.frame) + kPaddingLeftWidth, 12, kScreen_Width/2, 20)];
+            _titleL = [[UILabel alloc] initWithFrame:CGRectMake(CGRectGetMaxX(_iconView.frame) + kPaddingLeftWidth, ([UserInfoIconCell cellHeight] - 20)/ 2, kScreen_Width/2, 20)];
             _titleL.textAlignment = NSTextAlignmentLeft;
             _titleL.font = [UIFont systemFontOfSize:15];
-            _titleL.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _titleL.textColor = kColor222;
             [self.contentView addSubview:_titleL];
         }
     }
@@ -41,10 +42,11 @@
 }
 
 + (CGFloat)cellHeight{
-    return 44;
+    return 50;
 }
 #pragma mark Tip
 - (void)prepareForReuse{
+    [super prepareForReuse];
     [self removeTip];
     self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
 }

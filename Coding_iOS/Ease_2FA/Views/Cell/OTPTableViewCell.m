@@ -49,7 +49,7 @@
     if (!_issuerLabel) {
         _issuerLabel = [UILabel new];
         _issuerLabel.font = [UIFont systemFontOfSize:16];
-        _issuerLabel.textColor = [UIColor colorWithHexString:@"0x666666"];
+        _issuerLabel.textColor = kColor666;
         [self.contentView addSubview:_issuerLabel];
         [_issuerLabel mas_makeConstraints:^(MASConstraintMaker *make) {
             make.top.equalTo(self.contentView).offset(10);
@@ -61,7 +61,7 @@
     if (!_passwordLabel) {
         _passwordLabel = [UILabel new];
         _passwordLabel.font = [UIFont systemFontOfSize:50];
-        _passwordLabel.textColor = [UIColor colorWithHexString:@"0x3bbd79"];
+        _passwordLabel.textColor = kColorBrandBlue;
         [self.contentView addSubview:_passwordLabel];
         [_passwordLabel mas_makeConstraints:^(MASConstraintMaker *make) {
             make.centerY.equalTo(self.contentView);
@@ -73,7 +73,7 @@
     if (!_nameLabel) {
         _nameLabel = [UILabel new];
         _nameLabel.font = [UIFont systemFontOfSize:14];
-        _nameLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+        _nameLabel.textColor = kColor999;
         [self.contentView addSubview:_nameLabel];
         [_nameLabel mas_makeConstraints:^(MASConstraintMaker *make) {
             make.bottom.equalTo(self.contentView).offset(-10);
@@ -131,7 +131,8 @@
     if (!_back_passwordLabel) {
         _back_passwordLabel = [UILabel new];
         _back_passwordLabel.font = [UIFont systemFontOfSize:50];
-        _back_passwordLabel.textColor = [UIColor colorWithHexString:@"0xE15957"];
+//        _back_passwordLabel.textColor = [UIColor colorWithHexString:@"0xE15957"];
+        _back_passwordLabel.textColor = kColorDark3;
         [self.contentView addSubview:_back_passwordLabel];
         [_back_passwordLabel mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.passwordLabel);
@@ -153,6 +154,7 @@
 }
 
 - (void)prepareForReuse{
+    [super prepareForReuse];
     [self.contentView.layer removeAllAnimations];
     for (UIView *view in [self subviews]) {
         if ([view isKindOfClass:NSClassFromString(@"UITableViewCellDeleteConfirmationView")]) {

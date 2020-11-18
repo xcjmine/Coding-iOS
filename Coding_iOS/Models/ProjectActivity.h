@@ -14,13 +14,15 @@
 #import "FileComment.h"
 #import "ProjectFile.h"
 #import "ProjectTag.h"
+#import "EAMilestone.h"
 
 @class Task;
 @class ProjectTopic;
 
 @interface ProjectActivity : NSObject
-@property (readwrite, nonatomic, strong) NSNumber *id;
-@property (readwrite, nonatomic, strong) NSString *target_type, *action, *action_msg, *type, *ref, *ref_type, *ref_path, *pull_request_title, *merge_request_title, *comment_content, *merge_request_path, *pull_request_path, *version;
+@property (readwrite, nonatomic, strong) NSNumber *id, *wiki_iid;
+@property (readwrite, nonatomic, strong) NSString *target_type, *action, *action_msg, *type, *ref, *ref_type, *ref_path, *pull_request_title, *merge_request_title, *comment_content, *merge_request_path, *pull_request_path, *version, *wiki_title, *wiki_path, *old_name, *ref_name;
+@property (strong, nonatomic) NSString *release_title, *release_tag_name, *release_path;
 @property (readwrite, nonatomic, strong) User *user, *target_user, *watcher;
 @property (readwrite, nonatomic, strong) NSDate *created_at;
 @property (readwrite, nonatomic, strong) Task *origin_task, *task;
@@ -36,6 +38,10 @@
 @property (strong, nonatomic) Commit *commit;
 @property (strong, nonatomic) FileComment *projectFileComment;
 @property (strong, nonatomic) ProjectFile *projectFile;
+@property (strong, nonatomic) EAMilestone *milestone;
+
+@property (readwrite, strong, nonatomic) NSString *content;
+@property (readwrite, nonatomic, strong) HtmlMedia *htmlMedia;
 
 @property (readonly, nonatomic, strong) NSMutableArray *actionMediaItems, *contentMediaItems;
 @property (readonly, nonatomic, strong) NSMutableString *actionStr, *contentStr;

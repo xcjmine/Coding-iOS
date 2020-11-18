@@ -70,10 +70,10 @@
 - (void)refreshUI{
     if (self.rawData) {
         NSData *JSONDataRaw = [NSJSONSerialization dataWithJSONObject:self.rawData options:NSJSONWritingPrettyPrinted error:nil];
-        NSString *contentStr = [[NSString alloc] initWithData:JSONDataRaw encoding:NSUTF8StringEncoding];
+        NSString *contentStr = [[[NSString alloc] initWithData:JSONDataRaw encoding:NSUTF8StringEncoding] stringByRemoveSpecailCharacters];
         
         NSData *JSONDataComments = [NSJSONSerialization dataWithJSONObject:self.commentsData options:NSJSONWritingPrettyPrinted error:nil];
-        NSString *commentsStr = [[NSString alloc] initWithData:JSONDataComments encoding:NSUTF8StringEncoding];
+        NSString *commentsStr = [[[NSString alloc] initWithData:JSONDataComments encoding:NSUTF8StringEncoding] stringByRemoveSpecailCharacters];
         
         contentStr = [WebContentManager diffPatternedWithContent:contentStr andComments:commentsStr];
         [self.webContentView loadHTMLString:contentStr baseURL:nil];
@@ -126,7 +126,7 @@
     NSMutableDictionary *params = [self getParamsFromURLStr:curURL.absoluteString];
     if ([curURL.absoluteString hasPrefix:@"coding://line_note?"]) {
         NSString *title = [NSString stringWithFormat:@"Line %@", params[@"line"]];
-        [[UIActionSheet bk_actionSheetCustomWithTitle:title buttonTitles:@[@"添加评论"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        [[UIAlertController ea_actionSheetCustomWithTitle:title buttonTitles:@[@"添加评论"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [self goToAddCommentWithParams:params];
             }
@@ -134,7 +134,7 @@
     }else if ([curURL.absoluteString hasPrefix:@"coding://line_note_comment?"]){
         NSString *title = [NSString stringWithFormat:@"%@ 的评论", params[@"clicked_user_name"]];
         BOOL belongToSelf = [params[@"clicked_user_name"] isEqualToString:[Login curLoginUser].global_key];
-        [[UIActionSheet bk_actionSheetCustomWithTitle:title buttonTitles:@[belongToSelf? @"删除": @"回复"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        [[UIAlertController ea_actionSheetCustomWithTitle:title buttonTitles:@[belongToSelf? @"删除": @"回复"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 if (belongToSelf) {
                     [self doDeleteCommentWithParams:params];
@@ -161,8 +161,9 @@
 - (void)goToAddCommentWithParams:(NSMutableDictionary *)params{
     AddMDCommentViewController *vc = [AddMDCommentViewController new];
     vc.curProject = _curProject;
-    
-    NSString *requestPath = [[self.linkUrlStr componentsSeparatedByString:@"/git"] firstObject];
+    vc.isLineNote = YES;
+
+    NSString *requestPath = [[self.linkUrlStr componentsSeparatedByString:@"/git/"] firstObject];
     requestPath = [requestPath stringByAppendingString:@"/git/line_notes"];
     vc.requestPath = requestPath;
     
@@ -191,7 +192,7 @@
 }
 
 - (void)doDeleteCommentWithParams:(NSMutableDictionary *)params{
-    NSString *requestPath = [[self.linkUrlStr componentsSeparatedByString:@"/git"] firstObject];
+    NSString *requestPath = [[self.linkUrlStr componentsSeparatedByString:@"/git/"] firstObject];
     requestPath = [requestPath stringByAppendingFormat:@"/git/line_notes/%@", params[@"clicked_line_note_id"]];
     [[Coding_NetAPIManager sharedManager] request_DeleteLineNoteWithPath:requestPath andBlock:^(id data, NSError *error) {
         [self refresh];

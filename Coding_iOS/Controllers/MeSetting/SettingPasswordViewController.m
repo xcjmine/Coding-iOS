@@ -46,6 +46,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"完成" style:UIBarButtonItemStylePlain target:self action:@selector(doneBtnClicked:)];
@@ -102,6 +105,10 @@
     [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:kPaddingLeftWidth];
     return cell;
 }
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+    return 50;
+}
+
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section{
     UIView *headerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, kScreen_Width, 20)];
     headerView.backgroundColor = kColorTableSectionBg;
@@ -133,12 +140,9 @@
         self.navigationItem.rightBarButtonItem.enabled = YES;
         if (data) {
             __weak typeof(self) weakSelf = self;
-            UIAlertView *alertView = [UIAlertView bk_alertViewWithTitle:@"提示" message:@"修改密码成功，您需要重新登陆哦～"];
-            [alertView bk_setCancelButtonWithTitle:@"知道了" handler:nil];
-            [alertView bk_setDidDismissBlock:^(UIAlertView *alert, NSInteger index) {
+            [[UIAlertController ea_alertViewWithTitle:@"提示" message:@"修改密码成功，您需要重新登陆哦～" buttonTitles:nil destructiveTitle:nil cancelTitle:@"知道了" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
                 [weakSelf loginOutToLoginVC];
-            }];
-            [alertView show];
+            }] show];
         }
     }];
 }

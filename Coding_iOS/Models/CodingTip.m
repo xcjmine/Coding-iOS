@@ -64,7 +64,7 @@
         _target_type_ColorName = @"0x379FD3";
     }
     _target_type_imageName = [NSString stringWithFormat:@"tipIcon_%@", _target_type];
-    _content = _htmlMedia.contentDisplay;
+    _content = [_htmlMedia.contentDisplay stringByReplacingOccurrencesOfString:@"团队" withString:@"企业"];
 }
 
 + (NSDictionary *)p_color_dict{
@@ -95,7 +95,8 @@
                        @"TweetComment" : @"0xFB8638",
                        @"TweetLike" : @"0xFF5847",
                        @"User" : @"0x496AB3",
-                       @"UserFollow" : @"0x3BBD79",
+                       @"UserFollow" : @"0x0060FF",
+                       @"ProjectTopicCommentVote": @"",
                        };
     });
     return color_dict;

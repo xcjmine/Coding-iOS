@@ -8,13 +8,12 @@
 
 #import "SettingViewController.h"
 #import "TitleDisclosureCell.h"
+#import "TitleValueMoreCell.h"
 #import "Login.h"
 #import "AppDelegate.h"
 #import "SettingAccountViewController.h"
-#import "AboutViewController.h"
-#import "EditTopicViewController.h"
 
-@interface SettingViewController ()
+@interface SettingViewController ()<UITableViewDataSource, UITableViewDelegate>
 @property (strong, nonatomic) UITableView *myTableView;
 @end
 
@@ -34,63 +33,50 @@
         tableView.delegate = self;
         tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
         [tableView registerClass:[TitleDisclosureCell class] forCellReuseIdentifier:kCellIdentifier_TitleDisclosure];
+        [tableView registerClass:[TitleValueMoreCell class] forCellReuseIdentifier:kCellIdentifier_TitleValueMore];
         [self.view addSubview:tableView];
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _myTableView.tableFooterView = [self tableFooterView];
 }
 
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+- (UIView*)tableFooterView{
+    UIView *footerV = [[UIView alloc] initWithFrame:CGRectMake(0, 0, kScreen_Width, 90)];
+    UIButton *loginBtn = [UIButton buttonWithStyle:StrapWarningStyle andTitle:@"退出" andFrame:CGRectMake(10, 0, kScreen_Width-10*2, 45) target:self action:@selector(loginOutBtnClicked:)];
+    [loginBtn setCenter:footerV.center];
+    [footerV addSubview:loginBtn];
+    return footerV;
 }
 
 #pragma mark TableM
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
-    return 3;
-}
+
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
-    NSInteger row = 0;
-    switch (section) {
-        case 0:
-            row = 1;
-            break;
-        case 1:
-            row = 2;
-            break;
-        default:
-            row = 1;
-            break;
-    }
-    return row;
+    return 2;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
-    TitleDisclosureCell *cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_TitleDisclosure forIndexPath:indexPath];
-    switch (indexPath.section) {
-        case 0:
-            [cell setTitleStr:@"账号设置"];
-            break;
-        case 1:
-            switch (indexPath.row) {
-                case 0:
-                    [cell setTitleStr:@"意见反馈"];
-                    break;
-                case 1:
-                    [cell setTitleStr:@"去评分"];
-                    break;
-                default:
-                    [cell setTitleStr:@"分享给好友"];
-                    break;
-            }
-            break;
-        default:
-            [cell setTitleStr:@"关于Coding"];
-            break;
+    UITableViewCell *cell;
+    if (indexPath.row == 0) {
+        cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_TitleDisclosure forIndexPath:indexPath];
+        [(TitleDisclosureCell *)cell setTitleStr:@"账号设置"];
+
+    }else{
+        cell = [tableView dequeueReusableCellWithIdentifier:kCellIdentifier_TitleValueMore forIndexPath:indexPath];
+        [(TitleValueMoreCell *)cell setTitleStr:@"清除缓存" valueStr:@"--"];
+        __weak typeof(self) weakSelf = self;
+        __weak typeof(cell) weakCell = cell;
+        dispatch_async(dispatch_get_global_queue(0, 0), ^{
+            NSString *diskCacheSizeStr = [weakSelf p_diskCacheSizeStr];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                ((UILabel *)[weakCell valueForKey:@"valueLabel"]).text = diskCacheSizeStr;
+            });
+        });
     }
     [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:kPaddingLeftWidth];
     return cell;
@@ -109,65 +95,46 @@
     return 0.5;
 }
 
-#pragma mark -
-
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    switch (indexPath.section) {
-        case 0:{//账号设置
-            SettingAccountViewController *vc = [[SettingAccountViewController alloc] init];
-            [self.navigationController pushViewController:vc animated:YES];
-        }
-            break;
-        case 1:
-            switch (indexPath.row) {
-                case 0:{//意见反馈
-                    EditTopicViewController *vc = [[EditTopicViewController alloc] init];
-                    vc.curProTopic = [ProjectTopic feedbackTopic];
-                    vc.type = TopicEditTypeFeedBack;
-                    vc.topicChangedBlock = nil;
-                    [self.navigationController pushViewController:vc animated:YES];
-                }
-                    break;
-                case 1:{//评分
-                    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:kAppReviewURL]];
-                }
-                    break;
-                default:
-                    break;
+    if (indexPath.row == 0) {
+        SettingAccountViewController *vc = [[SettingAccountViewController alloc] init];
+        [self.navigationController pushViewController:vc animated:YES];
+    }else{
+        __weak typeof(self) weakSelf = self;
+        [[UIAlertController ea_actionSheetCustomWithTitle:@"缓存数据有助于再次浏览或离线查看，你确定要清除缓存吗？" buttonTitles:nil destructiveTitle:@"确定清除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
+            if (index == 0) {
+                [weakSelf clearDiskCache];
             }
-            break;
-        default:{//关于
-            AboutViewController *vc = [[AboutViewController alloc] init];
-            [self.navigationController pushViewController:vc animated:YES];
-        }
-            break;
+        }] showInView:self.view];
     }
 }
 
-- (UIView*)tableFooterView{
-    UIView *footerV = [[UIView alloc] initWithFrame:CGRectMake(0, 0, kScreen_Width, 90)];
-    UIButton *loginBtn = [UIButton buttonWithStyle:StrapWarningStyle andTitle:@"退出" andFrame:CGRectMake(10, 0, kScreen_Width-10*2, 45) target:self action:@selector(loginOutBtnClicked:)];
-    [loginBtn setCenter:footerV.center];
-    [footerV addSubview:loginBtn];
-    return footerV;
-}
+#pragma mark - Action
 
 - (void)loginOutBtnClicked:(id)sender{
-    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:@"确定要退出当前账号" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:@"确定退出" otherButtonTitles: nil];
-    [actionSheet showInView:self.view];
+    __weak typeof(self) weakSelf = self;
+    [[UIAlertController ea_actionSheetCustomWithTitle:@"确定要退出当前账号吗？" buttonTitles:nil destructiveTitle:@"确定退出" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
+        if (index == 0) {
+            [weakSelf loginOutToLoginVC];
+        }
+    }] showInView:self.view];
 }
 
-#pragma mark UIActionSheetDelegate M
-- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex{
-    if (buttonIndex == 0) {
-        [self loginOutToLoginVC];
-    }
+- (void)clearDiskCache{
+    [NSObject showHUDQueryStr:@"正在清除缓存..."];
+    [NSObject deleteResponseCache];
+    [[SDImageCache sharedImageCache] clearDiskOnCompletion:^{
+        [NSObject hideHUDQuery];
+        [NSObject showHudTipStr:@"清除缓存成功"];
+        [self.myTableView reloadData];
+    }];
 }
 
-- (void)dealloc
-{
-    _myTableView.delegate = nil;
-    _myTableView.dataSource = nil;
+- (NSString *)p_diskCacheSizeStr{
+    NSUInteger size = [[SDImageCache sharedImageCache] getSize];
+    size += [NSObject getResponseCacheSize];
+    return [NSString stringWithFormat:@"%.2f M", size/ 1024.0/ 1024.0];
 }
+
 @end

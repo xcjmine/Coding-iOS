@@ -6,7 +6,7 @@
 //  Copyright (c) 2015年 Coding. All rights reserved.
 //
 
-#define kMRPRAcceptEditCell_TextViewHeight 80.0
+#define kMRPRAcceptEditCell_TextViewHeight (kScreen_Height/4)
 
 #import "MRPRAcceptEditCell.h"
 
@@ -25,7 +25,7 @@
         
         UILabel *titleL = [UILabel new];
         titleL.font = [UIFont systemFontOfSize:15];
-        titleL.textColor = [UIColor colorWithHexString:@"0x999999"];
+        titleL.textColor = kColorDark7;
         titleL.text = @"Merge Commit Message";
         [self.contentView addSubview:titleL];
         
@@ -36,7 +36,7 @@
         _contentTextView = [UIPlaceHolderTextView new];
         _contentTextView.backgroundColor = [UIColor clearColor];
         _contentTextView.font = [UIFont systemFontOfSize:15];
-        _contentTextView.textColor = [UIColor colorWithHexString:@"0x222222"];
+        _contentTextView.textColor = kColorDark3;
         _contentTextView.delegate = self;
         _contentTextView.placeholder = @"输入点什么...";
         [self.contentView addSubview:_contentTextView];

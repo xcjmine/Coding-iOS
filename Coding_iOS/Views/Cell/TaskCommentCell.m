@@ -7,9 +7,8 @@
 //
 
 #define kTaskCommentCell_FontContent [UIFont systemFontOfSize:15]
-#define kTaskCommentCell_LeftPading 30.0
-#define kTaskCommentCell_LeftContentPading (kTaskCommentCell_LeftPading + 40)
-#define kTaskCommentCell_ContentWidth (kScreen_Width - kTaskCommentCell_LeftContentPading - kTaskCommentCell_LeftPading)
+#define kTaskCommentCell_LeftContentPading (30 + 15 * 2 + 15)
+#define kTaskCommentCell_ContentWidth (kScreen_Width - kTaskCommentCell_LeftContentPading - 15 * 2)
 
 #import "TaskCommentCell.h"
 #import "UICustomCollectionView.h"
@@ -17,12 +16,13 @@
 
 #import "MJPhotoBrowser.h"
 #import "FileComment.h"
+#import "HtmlMediaViewController.h"
 
 @interface TaskCommentCell ()<UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout>
 @property (strong, nonatomic) UIImageView *ownerIconView, *timeLineView, *contentBGView;
 @property (strong, nonatomic) UILabel *timeLabel;
 @property (strong, nonatomic) UICustomCollectionView *imageCollectionView;
-
+@property (strong, nonatomic) UIButton *detailBtn;
 @end
 
 @implementation TaskCommentCell
@@ -33,7 +33,6 @@
     if (self) {
         // Initialization code
         self.selectionStyle = UITableViewCellSelectionStyleNone;
-        CGFloat curBottomY = 15;
         if (!_contentBGView) {
             _contentBGView = [UIImageView new];
             _contentBGView.image = [[UIImage imageNamed:@"comment_bg"] resizableImageWithCapInsets:UIEdgeInsetsMake(35, 15, 5, 5)];
@@ -48,24 +47,23 @@
         if (!_ownerIconView) {
             CGFloat borderWidth = 2;
 
-            UIView *bgView = [[UIView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth - borderWidth, curBottomY, 28+ 2*borderWidth, 28 + 2*borderWidth)];
+            UIView *bgView = [[UIView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth - borderWidth, 12, 33+ 2*borderWidth, 33 + 2*borderWidth)];
             bgView.backgroundColor = kColorTableBG;
             
-            _ownerIconView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, 28, 28)];
+            _ownerIconView = [[YLImageView alloc] initWithFrame:CGRectMake(0, 0, 33, 33)];
             _ownerIconView.layer.masksToBounds = YES;
             _ownerIconView.layer.cornerRadius = _ownerIconView.frame.size.width/2;
             
             [bgView addSubview:_ownerIconView];
             [_ownerIconView mas_makeConstraints:^(MASConstraintMaker *make) {
-                make.width.height.mas_equalTo(28.0);
+                make.width.height.mas_equalTo(33.0);
                 make.center.equalTo(bgView);
             }];
-            
             [self.contentView addSubview:bgView];
         }
         if (!_contentLabel) {
-            _contentLabel = [[UITTTAttributedLabel alloc] initWithFrame:CGRectMake(kTaskCommentCell_LeftContentPading, curBottomY, kTaskCommentCell_ContentWidth, 30)];
-            _contentLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _contentLabel = [[UITTTAttributedLabel alloc] initWithFrame:CGRectMake(kTaskCommentCell_LeftContentPading, 7 + 15, kTaskCommentCell_ContentWidth, 30)];
+            _contentLabel.textColor = kColorDark4;
             _contentLabel.font = kTaskCommentCell_FontContent;
             _contentLabel.linkAttributes = kLinkAttributes;
             _contentLabel.activeLinkAttributes = kLinkAttributesActive;
@@ -74,7 +72,7 @@
         }
         if (!_timeLabel) {
             _timeLabel = [[UILabel alloc] initWithFrame:CGRectMake(kTaskCommentCell_LeftContentPading, 0, kTaskCommentCell_ContentWidth, 20)];
-            _timeLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _timeLabel.textColor = kColorDark7;
             _timeLabel.font = [UIFont systemFontOfSize:12];
             [self.contentView addSubview:_timeLabel];
         }
@@ -92,10 +90,27 @@
             }
         }
         [_contentBGView mas_makeConstraints:^(MASConstraintMaker *make) {
-            make.edges.equalTo(self.contentView).insets(UIEdgeInsetsMake(5, 60- 7, 5, 20));
+            make.edges.equalTo(self.contentView).insets(UIEdgeInsetsMake(7, 33 + 15* 2 - 9, 7, 15));
         }];
+        if (!_detailBtn) {
+            _detailBtn = [UIButton buttonWithTitle:@"查看详情" titleColor:kColorBrandBlue];
+            _detailBtn.titleLabel.font = [UIFont systemFontOfSize:12];
+            [_detailBtn addTarget:self action:@selector(goToDetail) forControlEvents:UIControlEventTouchUpInside];
+            [self.contentView addSubview:_detailBtn];
+            [_detailBtn mas_makeConstraints:^(MASConstraintMaker *make) {
+                make.size.mas_equalTo(CGSizeMake(60, 30));
+                make.right.equalTo(_contentBGView).offset(-10);
+                make.centerY.equalTo(_timeLabel);
+            }];
+        }
+        _timeLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
     }
     return self;
+}
+
+- (void)goToDetail{
+    HtmlMediaViewController *vc = [HtmlMediaViewController instanceWithHtmlMedia:self.curComment.htmlMedia title:[NSString stringWithFormat:@"%@ 的评论", self.curComment.owner.name]];
+    [BaseViewController goToVC:vc];
 }
 
 - (void)setCurComment:(TaskComment *)curComment{
@@ -103,32 +118,33 @@
     if (!_curComment) {
         return;
     }
-    CGFloat curBottomY = 15;
+    _detailBtn.hidden = ![self.curComment.htmlMedia needToShowDetail];
     [_ownerIconView sd_setImageWithURL:[_curComment.owner.avatar urlImageWithCodePathResizeToView:_ownerIconView] placeholderImage:kPlaceholderMonkeyRoundWidth(33.0)];
     
     NSString *contentStr = _curComment.content;
     [_contentLabel setLongString:contentStr withFitWidth:kTaskCommentCell_ContentWidth];
     
     for (HtmlMediaItem *item in _curComment.htmlMedia.mediaItems) {
-        if (item.displayStr.length > 0 && !(item.type == HtmlMediaItemType_Code ||item.type == HtmlMediaItemType_EmotionEmoji)) {
+        if (item.displayStr.length > 0 && item.href.length > 0) {
             [_contentLabel addLinkToTransitInformation:[NSDictionary dictionaryWithObject:item forKey:@"value"] withRange:item.range];
         }
     }
     
-    curBottomY += [contentStr getHeightWithFont:kTaskCommentCell_FontContent constrainedToSize:CGSizeMake(kTaskCommentCell_ContentWidth, CGFLOAT_MAX)] + 5;
+    CGFloat curBottomY = CGRectGetMinY(_contentLabel.frame) + [contentStr getHeightWithFont:kTaskCommentCell_FontContent constrainedToSize:CGSizeMake(kTaskCommentCell_ContentWidth, CGFLOAT_MAX)];
     
     NSInteger imagesCount = _curComment.htmlMedia.imageItems.count;
     if (imagesCount > 0) {
+        curBottomY += 5;
         self.imageCollectionView.hidden = NO;
         [self.imageCollectionView setFrame:CGRectMake(kTaskCommentCell_LeftContentPading, curBottomY, kTaskCommentCell_ContentWidth, [TaskCommentCell imageCollectionViewHeightWithCount:imagesCount])];
         [self.imageCollectionView reloadData];
+        curBottomY += [TaskCommentCell imageCollectionViewHeightWithCount:imagesCount];
     }else{
+        curBottomY += 10;
         self.imageCollectionView.hidden = YES;
     }
-    
-    curBottomY += [TaskCommentCell imageCollectionViewHeightWithCount:imagesCount];
-    
     [_timeLabel setY:curBottomY];
+    _timeLabel.width = _detailBtn.hidden? kTaskCommentCell_ContentWidth: kTaskCommentCell_ContentWidth - 60;
     _timeLabel.text = [NSString stringWithFormat:@"%@ 发布于 %@", _curComment.owner.name, [_curComment.created_at stringDisplay_HHmm]];
 }
 
@@ -152,9 +168,17 @@
         || [obj isKindOfClass:[FileComment class]]) {
         TaskComment *curComment = (TaskComment *)obj;
         NSString *contentStr = curComment.content;
-        cellHeight += 10 +[contentStr getHeightWithFont:kTaskCommentCell_FontContent constrainedToSize:CGSizeMake(kTaskCommentCell_ContentWidth, CGFLOAT_MAX)] + 5 +20 +10;
-        cellHeight += [self imageCollectionViewHeightWithCount:curComment.htmlMedia.imageItems.count];
-        cellHeight += 10;
+        cellHeight += 7 + 15 +[contentStr getHeightWithFont:kTaskCommentCell_FontContent constrainedToSize:CGSizeMake(kTaskCommentCell_ContentWidth, CGFLOAT_MAX)];
+        if (curComment.htmlMedia.imageItems.count > 0) {
+            cellHeight += 5 + [self imageCollectionViewHeightWithCount:curComment.htmlMedia.imageItems.count];
+        }else{
+            cellHeight += 10;
+        }
+        cellHeight += 20;
+        cellHeight += 15 + 7;
+//        + 5 +20 +10;
+//        cellHeight += [self imageCollectionViewHeightWithCount:curComment.htmlMedia.imageItems.count];
+//        cellHeight += 20;
     }
     return cellHeight;
 }

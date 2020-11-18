@@ -31,7 +31,7 @@
             [self.contentView addSubview:_titleLabel];
         }
         if (!_userIconView) {
-            _userIconView = [[UIImageView alloc] initWithFrame:CGRectMake((kScreen_Width- kTitleRImageMoreCell_HeightIcon)- kPaddingLeftWidth- 30, ([TitleRImageMoreCell cellHeight] -kTitleRImageMoreCell_HeightIcon)/2, kTitleRImageMoreCell_HeightIcon, kTitleRImageMoreCell_HeightIcon)];
+            _userIconView = [[YLImageView alloc] initWithFrame:CGRectMake((kScreen_Width- kTitleRImageMoreCell_HeightIcon)- kPaddingLeftWidth- 30, ([TitleRImageMoreCell cellHeight] -kTitleRImageMoreCell_HeightIcon)/2, kTitleRImageMoreCell_HeightIcon, kTitleRImageMoreCell_HeightIcon)];
             [_userIconView doCircleFrame];
             [self.contentView addSubview:_userIconView];
         }
@@ -39,13 +39,16 @@
     return self;
 }
 
-- (void)layoutSubviews{
-    [super layoutSubviews];
-    if (!_curUser) {
-        return;
-    }
+- (void)setCurUser:(User *)curUser{
+    _curUser = curUser;
     self.titleLabel.text = @"头像";
     [self.userIconView sd_setImageWithURL:[_curUser.avatar urlImageWithCodePathResizeToView:_userIconView] placeholderImage:kPlaceholderMonkeyRoundView(_userIconView)];
+}
+
+- (void)setCurTeam:(Team *)curTeam{
+    _curTeam = curTeam;
+    self.titleLabel.text = @"企业头像";
+    [self.userIconView sd_setImageWithURL:[_curTeam.avatar urlImageWithCodePathResizeToView:_userIconView] placeholderImage:kPlaceholderMonkeyRoundView(_userIconView)];
 }
 
 + (CGFloat)cellHeight{

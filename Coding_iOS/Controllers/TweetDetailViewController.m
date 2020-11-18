@@ -21,6 +21,7 @@
 #import "ReportIllegalViewController.h"
 #import "TweetSendLocationDetailViewController.h"
 #import "CodingShareView.h"
+#import "ProjectTweetSendViewController.h"
 
 @interface TweetDetailViewController ()
 @property (nonatomic, strong) UITableView *myTableView;
@@ -51,9 +52,10 @@
 {
     [super viewDidLoad];
     // Do any additional setup after loading the view.
-    self.title = @"冒泡详情";
-    [self.navigationItem setRightBarButtonItem:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"share_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(rightNavBtnClicked)] animated:NO];
-
+    self.title = self.curTweet.project.name ?: @"冒泡详情";
+    if (![_curTweet isProjectTweet]) {
+        [self.navigationItem setRightBarButtonItem:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"share_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(rightNavBtnClicked)] animated:NO];
+    }
     //    添加myTableView
     _myTableView = ({
         UITableView *tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStylePlain];
@@ -67,30 +69,25 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _refreshControl = [[ODRefreshControl alloc] initInScrollView:self.myTableView];
     [_refreshControl addTarget:self action:@selector(refreshTweet) forControlEvents:UIControlEventValueChanged];
     
-    //评论
-    _myMsgInputView = [UIMessageInputView messageInputViewWithType:UIMessageInputViewContentTypeTweet];
-    _myMsgInputView.isAlwaysShow = YES;
-    _myMsgInputView.delegate = self;
-
-    UIEdgeInsets contentInsets = UIEdgeInsetsMake(0.0, 0.0,CGRectGetHeight(_myMsgInputView.frame), 0.0);
-    self.myTableView.contentInset = contentInsets;
-    self.myTableView.scrollIndicatorInsets = contentInsets;
+//    //评论
+//    _myMsgInputView = [UIMessageInputView messageInputViewWithType:UIMessageInputViewContentTypeTweet];
+//    _myMsgInputView.isAlwaysShow = YES;
+//    _myMsgInputView.delegate = self;
+//    _myMsgInputView.curProject = _curProject;
+//
+//    UIEdgeInsets contentInsets = UIEdgeInsetsMake(0.0, 0.0,CGRectGetHeight(_myMsgInputView.frame), 0.0);
+//    self.myTableView.contentInset = contentInsets;
+//    self.myTableView.scrollIndicatorInsets = contentInsets;
     
-    if (!_curTweet.content
-        || (_curTweet.likes.integerValue > 0 && _curTweet.like_users.count == 0)) {
-        [self refreshTweet];
-    }else{
-        _myMsgInputView.commentOfId = _curTweet.id;
-
-        if (_curTweet.comments.integerValue > _curTweet.comment_list.count) {
-            [self refreshComments];//加载等多评论
-        }
-    }
+    [self refreshTweet];
 }
 
 - (void)viewWillDisappear:(BOOL)animated{
@@ -111,29 +108,37 @@
     }
 }
 
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+- (void)setCurTweet:(Tweet *)curTweet{
+    _curTweet = curTweet;
+    if ([_curTweet isProjectTweet]) {
+        _myMsgInputView = nil;
+    }else{
+        //评论
+        _myMsgInputView = [UIMessageInputView messageInputViewWithType:UIMessageInputViewContentTypeTweet];
+        _myMsgInputView.isAlwaysShow = YES;
+        _myMsgInputView.delegate = self;
+        _myMsgInputView.curProject = _curProject;
+    }
+    UIEdgeInsets contentInsets = UIEdgeInsetsMake(0.0, 0.0,CGRectGetHeight(_myMsgInputView.frame), 0.0);
+    self.myTableView.contentInset = contentInsets;
+    self.myTableView.scrollIndicatorInsets = contentInsets;
 }
 
 - (void)rightNavBtnClicked{
     if (self.curTweet.id && [self.curTweet.id isKindOfClass:[NSNumber class]]) {
-        [_myMsgInputView isAndResignFirstResponder];
-        
-//        if (_curTweet.project_id != nil) {
-//            [NSObject showHudTipStr:@"项目内冒泡，不能分享"];
-//            return;
-//        }
-        [CodingShareView showShareViewWithObj:_curTweet];
-
-//        @weakify(self);
-//        [[UIActionSheet bk_actionSheetCustomWithTitle:nil buttonTitles:@[@"举报"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
-//            if (index == 0) {
-//                @strongify(self);
-//                [self goToReport];
-//            }
-//        }] showInView:self.view];
+        if (_curTweet.isProjectTweet) {
+            ProjectTweetSendViewController *vc = [ProjectTweetSendViewController new];
+            vc.curPro = _curProject;
+            vc.curTweet = _curTweet;
+            __weak typeof(self) weakSelf = self;
+            vc.sentBlock = ^(Tweet *tweet){
+                [weakSelf refreshTweet];
+            };
+            [self.navigationController pushViewController:vc animated:YES];
+        }else{
+            [_myMsgInputView isAndResignFirstResponder];
+            [CodingShareView showShareViewWithObj:_curTweet];
+        }
     }
 }
 
@@ -154,7 +159,7 @@
 - (void)messageInputView:(UIMessageInputView *)inputView heightToBottomChenged:(CGFloat)heightToBottom{
     [UIView animateWithDuration:0.25 delay:0.0f options:UIViewAnimationOptionTransitionFlipFromBottom animations:^{
         UIEdgeInsets contentInsets= UIEdgeInsetsMake(0.0, 0.0, MAX(CGRectGetHeight(inputView.frame), heightToBottom), 0.0);;
-        CGFloat msgInputY = kScreen_Height - heightToBottom - 64;
+        CGFloat msgInputY = kScreen_Height - heightToBottom - (44 + kSafeArea_Top);
         
         self.myTableView.contentInset = contentInsets;
         self.myTableView.scrollIndicatorInsets = contentInsets;
@@ -171,10 +176,11 @@
 #pragma mark refresh
 - (void)refreshTweet{
     __weak typeof(self) weakSelf = self;
-    if (_curTweet.project && !_curTweet.project_id) {
+    if (_curTweet.isProjectTweet && !_curTweet.project.current_user_role_id) {
         [[Coding_NetAPIManager sharedManager] request_ProjectDetail_WithObj:_curTweet.project andBlock:^(id data, NSError *error) {
             if (data) {
                 weakSelf.curTweet.project = data;
+                weakSelf.title = weakSelf.curTweet.project.name;
                 weakSelf.curTweet.project_id = [(Project *)data id];
                 [weakSelf refreshTweet];
             }else{
@@ -195,6 +201,11 @@
                 weakSelf.myMsgInputView.toUser = nil;
                 [weakSelf.myTableView reloadData];
                 [weakSelf refreshComments];
+                if (weakSelf.curTweet.isProjectTweet &&
+                    (weakSelf.curTweet.project.current_user_role_id.integerValue >= 90 ||
+                     [Login isLoginUserGlobalKey:weakSelf.curTweet.owner.global_key])) {
+                        [self.navigationItem setRightBarButtonItem:[UIBarButtonItem itemWithBtnTitle:@"编辑" target:self action:@selector(rightNavBtnClicked)] animated:YES];
+                }
             }else{
                 [weakSelf.refreshControl endRefreshing];
             }
@@ -221,7 +232,8 @@
 #pragma mark TableM
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
     NSInteger row = 0;
-    if (_curTweet && _curTweet.comment_list) {
+//    if (_curTweet && _curTweet.comment_list) {
+    if (_curTweet && _curTweet.comment_list && ![_curTweet isProjectTweet]) {
         row = 1+ [_curTweet.comment_list count];
     }else{
         row = 1;
@@ -236,7 +248,7 @@
         cell.commentClickedBlock = ^(id sender){
             [self doCommentToComment:nil sender:sender];
         };
-        cell.likeBtnClickedBlock = ^(){
+        cell.cellRefreshBlock = ^(){
             [self.myTableView reloadData];
         };
         cell.deleteClickedBlock = ^(){
@@ -244,7 +256,7 @@
                 return ;
             }
             ESWeakSelf;
-            UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"删除此冒泡" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+            UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:self.curTweet.isProjectTweet? @"删除此公告": @"删除此冒泡" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
                 ESStrongSelf
                 if (index == 0) {
                     [_self deleteTweet:_self.curTweet];
@@ -276,9 +288,9 @@
         cell.commentToCommentBlock = ^(Comment *toComment, id sender){
             [self doCommentToComment:toComment sender:sender];
         };
-        [cell.ownerIconView addTapBlock:^(id obj) {
-            [self goToUserInfo:curComment.owner];
-        }];
+//        [cell.ownerIconView addTapBlock:^(id obj) {
+//            [self goToUserInfo:curComment.owner];
+//        }];
         cell.contentLabel.delegate = self;
         [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:kPaddingLeftWidth];
         return cell;
@@ -342,7 +354,7 @@
     if (_toComment) {
         if ([Login isLoginUserGlobalKey:_toComment.owner.global_key]) {
             ESWeakSelf;
-            UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:@"删除此评论" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+            UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:@"删除此评论" buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
                 ESStrongSelf
                 if (index == 0) {
                     [_self deleteComment:_self.toComment ofTweet:_self.curTweet];
@@ -373,9 +385,12 @@
 }
 
 - (void)sendCurComment:(Tweet *)commentObj{
+    [NSObject showHUDQueryStr:@"正在发表评论..."];
     __weak typeof(self) weakSelf = self;
     [[Coding_NetAPIManager sharedManager] request_Tweet_DoComment_WithObj:commentObj andBlock:^(id data, NSError *error) {
+        [NSObject hideHUDQuery];
         if (data) {
+            [NSObject showHudTipStr:@"评论成功"];
             Comment *resultCommnet = (Comment *)data;
             resultCommnet.owner = [Login curLoginUser];
             [commentObj addNewComment:resultCommnet];
@@ -423,9 +438,15 @@
 
 #pragma mark to VC
 - (void)goToUserInfo:(User *)curUser{
-    UserInfoViewController *vc = [[UserInfoViewController alloc] init];
-    vc.curUser = curUser;
-    [self.navigationController pushViewController:vc animated:YES];
+    if (kTarget_Enterprise) {
+        UserInfoDetailViewController *vc = [UserInfoDetailViewController new];
+        vc.curUser = curUser;
+        [self.navigationController pushViewController:vc animated:YES];
+    }else{
+        UserInfoViewController *vc = [[UserInfoViewController alloc] init];
+        vc.curUser = curUser;
+        [self.navigationController pushViewController:vc animated:YES];
+    }
 }
 
 #pragma mark loadCellRequest

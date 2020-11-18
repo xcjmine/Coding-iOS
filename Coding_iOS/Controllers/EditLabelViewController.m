@@ -67,6 +67,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     [self sendRequest];
@@ -220,8 +223,8 @@
 - (NSArray *)rightButtons
 {
     NSMutableArray *rightUtilityButtons = [NSMutableArray new];
-    [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xe6e6e6"] icon:[UIImage imageNamed:@"icon_file_cell_rename"]];
-    [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xff5846"] icon:[UIImage imageNamed:@"icon_file_cell_delete"]];
+    [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xF2F4F6"] icon:[UIImage imageNamed:@"icon_file_cell_rename"]];
+    [rightUtilityButtons sw_addUtilityButtonWithColor:[UIColor colorWithHexString:@"0xF66262"] icon:[UIImage imageNamed:@"icon_file_cell_delete"]];
     return rightUtilityButtons;
 }
 
@@ -248,7 +251,7 @@
         __weak typeof(self) weakSelf = self;
         ProjectTag *ptLabel = [_tagList objectAtIndex:indexPath.row];
         NSString *tip = [NSString stringWithFormat:@"确定要删除标签:%@？", ptLabel.name];
-        UIActionSheet *actionSheet = [UIActionSheet bk_actionSheetCustomWithTitle:tip buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
+        UIAlertController *actionSheet = [UIAlertController ea_actionSheetCustomWithTitle:tip buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
             if (index == 0) {
                 [weakSelf deleteBtnClick:indexPath.row];
             }

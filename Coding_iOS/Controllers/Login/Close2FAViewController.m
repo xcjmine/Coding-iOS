@@ -47,6 +47,9 @@
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     self.myTableView.tableHeaderView = [self customHeaderView];
@@ -64,7 +67,7 @@
     headerV.backgroundColor = [UIColor clearColor];
     UILabel *tipL = [UILabel new];
     tipL.font = [UIFont systemFontOfSize:14];
-    tipL.textColor = [UIColor colorWithHexString:@"0x999999"];
+    tipL.textColor = kColor999;
     tipL.text = @"关闭两步验证，请先验证您的注册手机";
     [headerV addSubview:tipL];
     [tipL mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -106,7 +109,7 @@
             weakSelf.phoneCode = valueStr;
         };
         cell.phoneCodeBtnClckedBlock = ^(PhoneCodeButton *btn){
-            [weakSelf phoneCodeBtnClicked:btn];
+            [weakSelf phoneCodeBtnClicked:btn withCaptcha:nil];
         };
     }
     [tableView addLineforPlainCell:cell forRowAtIndexPath:indexPath withLeftSpace:kLoginPaddingLeftWidth];
@@ -114,21 +117,74 @@
 }
 
 #pragma mark Btn Clicked
-- (void)phoneCodeBtnClicked:(PhoneCodeButton *)sender{
+- (void)phoneCodeBtnClicked:(PhoneCodeButton *)sender withCaptcha:(NSString *)captcha{
     if (![_phone isPhoneNo]) {
         [NSObject showHudTipStr:@"手机号码格式有误"];
         return;
     }
     sender.enabled = NO;
-    [[Coding_NetAPIManager sharedManager] post_Close2FAGeneratePhoneCode:self.phone block:^(id data, NSError *error) {
+    __weak typeof(self) weakSelf = self;
+    [[Coding_NetAPIManager sharedManager] post_Close2FAGeneratePhoneCode:self.phone withCaptcha:captcha block:^(id data, NSError *error) {
         if (data) {
             [NSObject showHudTipStr:@"验证码发送成功"];
             [sender startUpTimer];
         }else{
             [sender invalidateTimer];
+            if (error && error.userInfo[@"msg"] && [[error.userInfo[@"msg"] allKeys] containsObject:@"j_captcha_error"]) {
+                [weakSelf p_showCaptchaAlert:sender];
+            }
         }
     }];
 }
+
+- (void)p_showCaptchaAlert:(PhoneCodeButton *)sender{
+    SDCAlertController *alertV = [SDCAlertController alertControllerWithTitle:@"提示" message:@"请输入图片验证码" preferredStyle:SDCAlertControllerStyleAlert];
+    UITextField *textF = [UITextField new];
+    textF.layer.sublayerTransform = CATransform3DMakeTranslation(5, 0, 0);
+    textF.backgroundColor = [UIColor whiteColor];
+    [textF doBorderWidth:0.5 color:nil cornerRadius:2.0];
+    UIImageView *imageV = [YLImageView new];
+    imageV.backgroundColor = [UIColor lightGrayColor];
+    imageV.contentMode = UIViewContentModeScaleAspectFit;
+    imageV.clipsToBounds = YES;
+    imageV.userInteractionEnabled = YES;
+    [textF doBorderWidth:0.5 color:nil cornerRadius:2.0];
+    NSURL *imageURL = [NSURL URLWithString:[NSString stringWithFormat:@"%@api/getCaptcha", [NSObject baseURLStr]]];
+    [imageV sd_setImageWithURL:imageURL placeholderImage:nil options:(SDWebImageRetryFailed | SDWebImageRefreshCached | SDWebImageHandleCookies)];
+    
+    [alertV.contentView addSubview:textF];
+    [alertV.contentView addSubview:imageV];
+    [textF mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.left.equalTo(alertV.contentView).offset(15);
+        make.height.mas_equalTo(25);
+        make.bottom.equalTo(alertV.contentView).offset(-10);
+    }];
+    [imageV mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.right.equalTo(alertV.contentView).offset(-15);
+        make.left.equalTo(textF.mas_right).offset(10);
+        make.width.mas_equalTo(60);
+        make.height.mas_equalTo(25);
+        make.centerY.equalTo(textF);
+    }];
+    //Action
+    __weak typeof(imageV) weakImageV = imageV;
+    [imageV bk_whenTapped:^{
+        [weakImageV sd_setImageWithURL:imageURL placeholderImage:nil options:(SDWebImageRetryFailed | SDWebImageRefreshCached | SDWebImageHandleCookies)];
+    }];
+    __weak typeof(self) weakSelf = self;
+    [alertV addAction:[SDCAlertAction actionWithTitle:@"取消" style:SDCAlertActionStyleCancel handler:nil]];
+    [alertV addAction:[SDCAlertAction actionWithTitle:@"确定" style:SDCAlertActionStyleDefault handler:nil]];
+    alertV.shouldDismissBlock =  ^BOOL (SDCAlertAction *action){
+        if (![action.title isEqualToString:@"取消"]) {
+            [weakSelf phoneCodeBtnClicked:sender withCaptcha:textF.text];
+        }
+        return YES;
+    };
+    [alertV presentWithCompletion:^{
+        [textF becomeFirstResponder];
+    }];
+}
+
 - (void)footerBtnClicked:(id)sender{
     [self.footerBtn startQueryAnimate];
     [[Coding_NetAPIManager sharedManager] post_Close2FAWithPhone:self.phone code:self.phoneCode block:^(id data, NSError *error) {

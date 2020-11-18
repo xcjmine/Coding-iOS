@@ -9,7 +9,8 @@
 #import "NSDate+Common.h"
 
 @implementation NSDate (Common)
-
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (BOOL)isSameDay:(NSDate*)anotherDate{
 	NSCalendar* calendar = [NSCalendar currentCalendar];
 	NSDateComponents* components1 = [calendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit) fromDate:self];
@@ -77,27 +78,32 @@
     
     NSString *text = nil;
 
-    NSInteger agoCount = [self monthsAgo];
+    NSInteger agoCount = [self yearsAgo];
     if (agoCount > 0) {
-        text = [NSString stringWithFormat:@"%ld个月前", (long)agoCount];
+        text = [NSString stringWithFormat:@"%ld年前", (long)agoCount];
     }else{
-        agoCount = [self daysAgoAgainstMidnight];
+        agoCount = [self monthsAgo];
         if (agoCount > 0) {
-            text = [NSString stringWithFormat:@"%ld天前", (long)agoCount];
+            text = [NSString stringWithFormat:@"%ld个月前", (long)agoCount];
         }else{
-            agoCount = [self hoursAgo];
+            agoCount = [self daysAgoAgainstMidnight];
             if (agoCount > 0) {
-                text = [NSString stringWithFormat:@"%ld小时前", (long)agoCount];
+                text = [NSString stringWithFormat:@"%ld天前", (long)agoCount];
             }else{
-                agoCount = [self minutesAgo];
+                agoCount = [self hoursAgo];
                 if (agoCount > 0) {
-                    text = [NSString stringWithFormat:@"%ld分钟前", (long)agoCount];
+                    text = [NSString stringWithFormat:@"%ld小时前", (long)agoCount];
                 }else{
-                    agoCount = [self secondsAgo];
-                    if (agoCount > 15) {
-                        text = [NSString stringWithFormat:@"%ld秒前", (long)agoCount];
+                    agoCount = [self minutesAgo];
+                    if (agoCount > 0) {
+                        text = [NSString stringWithFormat:@"%ld分钟前", (long)agoCount];
                     }else{
-                        text = @"刚刚";
+                        agoCount = [self secondsAgo];
+                        if (agoCount > 15) {
+                            text = [NSString stringWithFormat:@"%ld秒前", (long)agoCount];
+                        }else{
+                            text = @"刚刚";
+                        }
                     }
                 }
             }
@@ -212,5 +218,5 @@
     }
     return isDuringMidAutumn;
 }
-
+#pragma clang diagnostic pop
 @end

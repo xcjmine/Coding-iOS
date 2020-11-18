@@ -47,7 +47,6 @@
     if (self) {
         // Initialization code
         self.selectionStyle = UITableViewCellSelectionStyleNone;
-        self.backgroundColor = [UIColor clearColor];
         _preMediaViewHeight = 0;
 
         if (!_userIconView) {
@@ -132,7 +131,7 @@
             _timeLabel = [[UILabel alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, (kMessageCell_TimeHeight- 20)/2, kScreen_Width-2*kPaddingLeftWidth, 20)];
             _timeLabel.backgroundColor = [UIColor clearColor];
             _timeLabel.font = [UIFont systemFontOfSize:12];
-            _timeLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _timeLabel.textColor = kColor999;
             _timeLabel.textAlignment = NSTextAlignmentCenter;
             [self.contentView addSubview:_timeLabel];
         }
@@ -147,24 +146,17 @@
     CGSize bgImgViewSize;
     CGSize textSize;
     
-    if (_curPriMsg.content.length > 0) {
-        textSize = [_curPriMsg.content getSizeWithFont:kMessageCell_FontContent constrainedToSize:CGSizeMake(kMessageCell_ContentWidth, CGFLOAT_MAX)];
-    }else{
-        textSize = CGSizeZero;
-    }
-    
     [_contentLabel setWidth:kMessageCell_ContentWidth];
     _contentLabel.text = _curPriMsg.content;
     [_contentLabel sizeToFit];
     
+    textSize = _curPriMsg.content.length > 0? _contentLabel.size: CGSizeZero;
+
     for (HtmlMediaItem *item in _curPriMsg.htmlMedia.mediaItems) {
-        if (item.displayStr.length > 0 && !(item.type == HtmlMediaItemType_Code ||item.type == HtmlMediaItemType_EmotionEmoji)) {
+        if (item.displayStr.length > 0 && item.href.length > 0) {
             [self.contentLabel addLinkToTransitInformation:[NSDictionary dictionaryWithObject:item forKey:@"value"] withRange:item.range];
         }
     }
-    
-    textSize.height = CGRectGetHeight(_contentLabel.frame);
-    
     
     if (mediaViewHeight > 0) {
         //        有图片
@@ -173,7 +165,7 @@
         CGFloat contentWidth = [_curPriMsg isSingleBigMonkey]? [MessageMediaItemCCell monkeyCcellSize].width : kMessageCell_ContentWidth;
         bgImgViewSize = CGSizeMake(contentWidth +2*kMessageCell_PadingWidth,
                                    mediaViewHeight +textSize.height + kMessageCell_PadingHeight*(_curPriMsg.content.length > 0? 3:2));
-    } else if (curPriMsg.file || curPriMsg.voiceMedia) {
+    } else if ([curPriMsg isVoice]) {
         bgImgViewSize = CGSizeMake(kMessageCell_ContentWidth, 40);
     } else{
         [_contentLabel setY:kMessageCell_PadingHeight];
@@ -288,7 +280,7 @@
         CGSize textSize = [curPriMsg.content getSizeWithFont:kMessageCell_FontContent constrainedToSize:CGSizeMake(kMessageCell_ContentWidth, CGFLOAT_MAX)];
         CGFloat mediaViewHeight = [MessageCell mediaViewHeightWithObj:curPriMsg];
         cellHeight += mediaViewHeight;
-        if (curPriMsg.voiceMedia || curPriMsg.file) {
+        if ([curPriMsg isVoice]) {
             cellHeight += kMessageCell_PadingHeight*2+40;
         } else {
             cellHeight += textSize.height + kMessageCell_PadingHeight*4;

@@ -39,7 +39,6 @@ static CGFloat target_height = 45.0;
     if (self) {
         // Initialization code
         self.selectionStyle = UITableViewCellSelectionStyleNone;
-        self.backgroundColor = [UIColor clearColor];
 //        if (!self.ownerImgView) {
 //            self.ownerImgView = [[UITapImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, 15, user_icon_width, user_icon_width)];
 //            [self.ownerImgView doCircleFrame];
@@ -51,7 +50,7 @@ static CGFloat target_height = 45.0;
 ////            _ownerL.font = [UIFont systemFontOfSize:20];
 ////            PartyLetPlain
 ////            Chalkduster
-//            _ownerL.textColor = [UIColor colorWithHexString:@"0x999999"];
+//            _ownerL.textColor = kColor999;
 //            _ownerL.textAlignment = NSTextAlignmentCenter;
 //            [self.ownerImgView addSubview:_ownerL];
 //
@@ -72,7 +71,7 @@ static CGFloat target_height = 45.0;
             _timeLabel = [[UILabel alloc] initWithFrame:CGRectMake(kScreen_Width - kPaddingLeftWidth - 100, 15, 100, 15)];
             _timeLabel.font = [UIFont systemFontOfSize:12];
             _timeLabel.backgroundColor = [UIColor clearColor];
-            _timeLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _timeLabel.textColor = kColor999;
             _timeLabel.textAlignment = NSTextAlignmentRight;
             [self.contentView addSubview:_timeLabel];
         }
@@ -80,7 +79,7 @@ static CGFloat target_height = 45.0;
             _contentLabel = [[UITTTAttributedLabel alloc] initWithFrame:CGRectMake(padding_left, padding_height, kCodingTipCell_WidthContent, 20)];
             _contentLabel.font = kCodingTipCell_FontContent;
             _contentLabel.backgroundColor = [UIColor clearColor];
-            _contentLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _contentLabel.textColor = kColor222;
             _contentLabel.linkAttributes = kLinkAttributes;
             _contentLabel.activeLinkAttributes = kLinkAttributesActive;
             _contentLabel.delegate = self;
@@ -88,14 +87,14 @@ static CGFloat target_height = 45.0;
         }
         if (!_targetBgBtn) {
             _targetBgBtn = [[UIButton alloc] initWithFrame:CGRectMake(padding_left, 0, kCodingTipCell_WidthContent, target_height)];
-            [_targetBgBtn setBackgroundColor:[UIColor colorWithHexString:@"0xEEEEEE"]];
+            [_targetBgBtn setBackgroundColor:kColorTableSectionBg];
             //target_icon
             _targetIconView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, target_height, target_height)];
             _targetIconView.contentMode = UIViewContentModeCenter;
             [_targetBgBtn addSubview:_targetIconView];
             //target_content
             _targetLabel = [[UILabel alloc] initWithFrame:CGRectMake(target_height + 10, 0, kCodingTipCell_WidthContent - target_height - 10, target_height)];
-            _targetLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _targetLabel.textColor = kColor222;
             _targetLabel.font = [UIFont systemFontOfSize:14];
             _targetLabel.numberOfLines = 0;
 //            _targetLabel.userInteractionEnabled = NO;
@@ -123,7 +122,7 @@ static CGFloat target_height = 45.0;
 //    NSString *username_first = pinyin.length > 0? [[pinyin substringToIndex:1] uppercaseString]: @"C";
 //    _ownerL.text = username_first;
     //owner姓名
-    [self.ownerNameBtn setTitleColor:[UIColor colorWithHexString:curTip.user_item.type != HtmlMediaItemType_CustomLink? @"0x3bbd79": @"0x222222"] forState:UIControlStateNormal];
+    [self.ownerNameBtn setTitleColor:[UIColor colorWithHexString:curTip.user_item.type != HtmlMediaItemType_CustomLink? @"0x136BFB": @"0x222222"] forState:UIControlStateNormal];
     [self.ownerNameBtn setUserTitle:userName font:[UIFont systemFontOfSize:17] maxWidth:(kCodingTipCell_WidthContent -80)];
     //时间
 //    _timeLabel.text = _curTip.target_type;
@@ -132,7 +131,7 @@ static CGFloat target_height = 45.0;
     //content
     [_contentLabel setLongString:_curTip.content withFitWidth:kCodingTipCell_WidthContent];
     for (HtmlMediaItem *item in _curTip.htmlMedia.mediaItems) {
-        if (item.displayStr.length > 0) {
+        if (item.displayStr.length > 0 && item.href.length > 0) {
             [self.contentLabel addLinkToTransitInformation:[NSDictionary dictionaryWithObject:item forKey:@"value"] withRange:item.range];
         }
     }

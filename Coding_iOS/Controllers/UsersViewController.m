@@ -59,9 +59,12 @@
         case UsersTypeFriends_Message:
             self.title = @"我的好友";
             break;
+        case UsersType_CompanyMember:
+            self.title = @"企业成员";
+            break;
         case UsersTypeFriends_At:
         case UsersTypeFriends_Transpond:{
-            self.title = @"我的好友";
+            self.title = kTarget_Enterprise? @"企业成员": @"我的好友";
             self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"取消" style:UIBarButtonItemStylePlain target:self action:@selector(dismissSelf)];
         }
             break;
@@ -84,18 +87,21 @@
         [tableView registerClass:[UserCell class] forCellReuseIdentifier:kCellIdentifier_UserCell];
         tableView.sectionIndexBackgroundColor = [UIColor clearColor];
         tableView.sectionIndexTrackingBackgroundColor = [UIColor clearColor];
-        tableView.sectionIndexColor = [UIColor colorWithHexString:@"0x666666"];
+        tableView.sectionIndexColor = kColor666;
         [self.view addSubview:tableView];
         [tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.equalTo(self.view);
         }];
+        tableView.estimatedRowHeight = 0;
+        tableView.estimatedSectionHeaderHeight = 0;
+        tableView.estimatedSectionFooterHeight = 0;
         tableView;
     });
     _mySearchBar = ({
         UISearchBar *searchBar = [[UISearchBar alloc] init];
         searchBar.delegate = self;
         [searchBar sizeToFit];
-        [searchBar setPlaceholder:@"昵称/个性后缀"];
+        [searchBar setPlaceholder:@"昵称/用户名"];
         searchBar;
     });
     _myTableView.tableHeaderView = _mySearchBar;
@@ -169,6 +175,9 @@
         [weakSelf.myTableView.infiniteScrollingView stopAnimating];
         if (data) {
             [weakSelf.curUsers configWithObj:data];
+            if (weakSelf.curUsers.type == UsersType_CompanyMember) {//发私信，移除自己
+                [weakSelf.curUsers removeLoginUserFromList];
+            }
             weakSelf.groupedDict = [weakSelf.curUsers dictGroupedByPinyin];
             
             [weakSelf.myTableView reloadData];
@@ -243,7 +252,7 @@
     
     UILabel *titleL = [[UILabel alloc] init];
     titleL.font = [UIFont systemFontOfSize:12];
-    titleL.textColor = [UIColor colorWithHexString:@"0x999999"];
+    titleL.textColor = kColor999;
     titleL.text = [self tableView:tableView titleForHeaderInSection:section];
     [headerV addSubview:titleL];
     [titleL mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -327,6 +336,10 @@
             vc.type = AddUserTypeFollow;
             [self.navigationController pushViewController:vc animated:YES];
         }
+    }else if (_curUsers.type == UsersType_CompanyMember){
+        ConversationViewController *vc = [[ConversationViewController alloc] init];
+        vc.myPriMsgs = [PrivateMessages priMsgsWithUser:user];
+        [self.navigationController pushViewController:vc animated:YES];
     }else if (_curUsers.type == UsersTypeFriends_At){
         [self dismissViewControllerAnimated:YES completion:^{
             if (weakSelf.selectUserBlock) {
@@ -334,41 +347,36 @@
             }
         }];
     }else if (_curUsers.type == UsersTypeFriends_Transpond){
-        UIAlertView *alertView = [UIAlertView bk_alertViewWithTitle:@"确定发送给：" message:user.name];
-        [alertView bk_setCancelButtonWithTitle:@"取消" handler:nil];
-        [alertView bk_addButtonWithTitle:@"确定" handler:nil];
-        [alertView bk_setDidDismissBlock:^(UIAlertView *alert, NSInteger index) {
-            switch (index) {
-                case 1:
-                {
-                    [weakSelf dismissViewControllerAnimated:YES completion:^{
-                        if (weakSelf.transpondMessageBlock) {
-                            PrivateMessage *nextMsg = [PrivateMessage privateMessageWithObj:weakSelf.curMessage andFriend:user];
-                            weakSelf.transpondMessageBlock(nextMsg);
-                        }
-                    }];
-                }
-                    break;
-                default:
-                    break;
+        [[UIAlertController ea_alertViewWithTitle:@"确定发送给：" message:user.name buttonTitles:@[@"确定"] destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
+            if (index == 0) {
+                [weakSelf dismissViewControllerAnimated:YES completion:^{
+                    if (weakSelf.transpondMessageBlock) {
+                        PrivateMessage *nextMsg = [PrivateMessage privateMessageWithObj:weakSelf.curMessage andFriend:user];
+                        weakSelf.transpondMessageBlock(nextMsg);
+                    }
+                }];
             }
-        }];
-        [alertView show];
+        }] show];
     }else{
-        UserInfoViewController *vc = [[UserInfoViewController alloc] init];
-        vc.curUser = user;
-        vc.followChanged = ^(User *curUser){
-            user.followed = curUser.followed;
-            [weakSelf.myTableView reloadData];
-        };
-        [self.navigationController pushViewController:vc animated:YES];
+        if (kTarget_Enterprise) {
+            UserInfoDetailViewController *vc = [UserInfoDetailViewController new];
+            vc.curUser = user;
+            [self.navigationController pushViewController:vc animated:YES];
+        }else{
+            UserInfoViewController *vc = [[UserInfoViewController alloc] init];
+            vc.curUser = user;
+            vc.followChanged = ^(User *curUser){
+                user.followed = curUser.followed;
+                [weakSelf.myTableView reloadData];
+            };
+            [self.navigationController pushViewController:vc animated:YES];
+        }
     }
 }
 
-
 #pragma mark UISearchBarDelegate
 - (BOOL)searchBarShouldBeginEditing:(UISearchBar *)searchBar{
-    [searchBar insertBGColor:[UIColor colorWithHexString:@"0x28303b"]];
+    [searchBar insertBGColor:kColorNavBG];
     return YES;
 }
 - (BOOL)searchBarShouldEndEditing:(UISearchBar *)searchBar{

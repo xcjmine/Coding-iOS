@@ -22,7 +22,6 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-        self.backgroundColor = [UIColor clearColor];
         // Initialization code
         if (!_iconView) {
             _iconView = [[UIImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, ([ProjectFolderListCell cellHeight] - kProjectFolderListCell_IconWidth)/2, kProjectFolderListCell_IconWidth, kProjectFolderListCell_IconWidth)];
@@ -30,7 +29,7 @@
         }
         if (!_nameLabel) {
             _nameLabel = [[UILabel alloc] initWithFrame:CGRectMake(kProjectFolderListCell_LeftPading, ([ProjectFolderListCell cellHeight] - 30)/2, (kScreen_Width - kProjectFolderListCell_LeftPading - 30), 30)];
-            _nameLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _nameLabel.textColor = kColor222;
             _nameLabel.font = [UIFont systemFontOfSize:16];
             [self.contentView addSubview:_nameLabel];
         }
@@ -44,14 +43,13 @@
     if (!_folder) {
         return;
     }
-    if ([_folder isDefaultFolder]) {
-        _iconView.image = [UIImage imageNamed:@"icon_file_folder_default"];
-    }else{
-        _iconView.image = [UIImage imageNamed:@"icon_file_folder_normal"];
-    }
-    _nameLabel.text = !_useToMove?
-    [NSString stringWithFormat:@"%@（%ld）", _folder.name, (long)(_folder.fileCountIncludeSub)]
-    :[NSString stringWithFormat:@"%@（%ld）", _folder.name, (long)_folder.sub_folders.count];
+    _iconView.image = [UIImage imageNamed:([_folder isOutFolder]? @"icon_file_folder_out":
+                                           [_folder isShareFolder]? @"icon_file_folder_share":
+                                           [_folder isDefaultFolder]? @"icon_file_folder_default":
+                                           @"icon_file_folder_normal")];
+    _nameLabel.text = (!_useToMove?
+                       [NSString stringWithFormat:@"%@（%ld）", _folder.name, (long)(_folder.fileCountIncludeSub)]
+                       :[NSString stringWithFormat:@"%@（%ld）", _folder.name, (long)_folder.sub_folders.count]);
 }
 
 + (CGFloat)cellHeight{

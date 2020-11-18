@@ -94,7 +94,7 @@
         return;
     }
     NSString *global_key = [Login curLoginUser].global_key;
-    NSString *tipKey = [NSString stringWithFormat:@"%@_%@_%@", kFunctionTipStr_Prefix, global_key, link];
+    NSString *tipKey = [NSString stringWithFormat:@"%@_%@_%@", kFunctionTipStr_StartLinkPrefix, global_key, link];
     if (![[FunctionTipsManager shareManager] needToTip:tipKey]) {
         return;
     }
@@ -144,23 +144,28 @@
 }
 
 - (void)refreshImagesPlist{
+    [self refreshImagesBlock:nil];
+}
+
+- (void)refreshImagesBlock:(void(^)(NSArray<StartImage *> *images, NSError *error))bk{
     NSString *aPath = @"api/wallpaper/wallpapers";
     NSDictionary *params = @{@"type" : @"3"};
-    [[CodingNetAPIClient sharedJsonClient] GET:aPath parameters:params success:^(AFHTTPRequestOperation *operation, id responseObject) {
-        DebugLog(@"\n===========response===========\n%@:\n%@", aPath, responseObject);
-        id error = [self handleResponse:responseObject];
+    [[CodingNetAPIClient sharedJsonClient] requestJsonDataWithPath:aPath withParams:params withMethodType:Get autoShowError:NO andBlock:^(id data, NSError *error) {
+        NSArray *resultA = nil;
         if (!error) {
-            NSArray *resultA = [responseObject valueForKey:@"data"];
+            resultA = data[@"data"];
             if ([self createFolder:[self downloadPath]]) {
                 if ([resultA writeToFile:[self pathOfSTPlist] atomically:YES]) {
                     [[StartImagesManager shareManager] startDownloadImages];
                 }
             }
         }
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-        DebugLog(@"\n===========response===========\n%@:\n%@", aPath, error);
+        if (bk) {
+            bk([NSObject arrayFromJSON:resultA ofObjects:@"StartImage"], error);
+        }
     }];
 }
+
 
 - (void)startDownloadImages{
     

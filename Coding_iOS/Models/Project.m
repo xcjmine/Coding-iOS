@@ -8,8 +8,25 @@
 
 #import "Project.h"
 #import "Login.h"
+#import "NProjectViewController.h"
+#import "EALocalCodeListViewController.h"
 
 @implementation Project
+
+- (BOOL)hasEverHandledBoard{
+    NSNumber *hasEverHandledBoard = [[NSUserDefaults standardUserDefaults] objectForKey:self.p_hasEverHandledBoardKey];
+    return hasEverHandledBoard? hasEverHandledBoard.boolValue : NO;
+}
+
+- (void)setHasEverHandledBoard:(BOOL)hasEverHandledBoard{
+    [[NSUserDefaults standardUserDefaults] setObject:@(hasEverHandledBoard) forKey:self.p_hasEverHandledBoardKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (NSString *)p_hasEverHandledBoardKey{
+    return [NSString stringWithFormat:@"%@/%@/hasEverHandledBoardKey", self.owner_user_name, self.name];
+}
+
 - (instancetype)init
 {
     self = [super init];
@@ -61,6 +78,9 @@
     return person;
 }
 
+- (NSString *)owner_user_name{
+    return _owner_user_name ?: [NSObject baseCompany];
+}
 
 - (void)setFull_name:(NSString *)full_name{
     _full_name = full_name;
@@ -89,7 +109,7 @@
 }
 
 -(NSString *)toProjectPath{
-    return @"api/project";
+    return kTarget_Enterprise? [NSString stringWithFormat:@"api/team/%@/project", [NSObject baseCompany]]: @"api/project";
 }
 
 -(NSDictionary *)toCreateParams{
@@ -100,20 +120,34 @@
     }else{
         type = @"2";
     }
-    
-    return @{@"name":self.name,
-             @"description":self.description_mine,
-             @"type":type,
-             @"gitEnabled":@"true",
-             @"gitReadmeEnabled": _gitReadmeEnabled.boolValue? @"true": @"false",
-             @"gitIgnore":@"no",
-             @"gitLicense":@"no",
-             //             @"importFrom":@"no",
-             @"vcsType":@"git"};
+    if (kTarget_Enterprise) {
+        return @{@"name":self.name,
+                 @"description":self.description_mine,
+                 @"type":type,
+                 @"gitEnabled":@"true",
+                 @"gitReadmeEnabled": _gitReadmeEnabled.boolValue? @"true": @"false",
+                 @"gitIgnore":@"no",
+                 @"gitLicense":@"no",
+                 //             @"importFrom":@"no",
+                 @"vcsType":@"git",
+                 @"teamGK": [NSObject baseCompany],
+                 @"joinTeam": @"true",
+                 };
+    }else{
+        return @{@"name":self.name,
+                 @"description":self.description_mine,
+                 @"type":type,
+                 @"gitEnabled":@"true",
+                 @"gitReadmeEnabled": _gitReadmeEnabled.boolValue? @"true": @"false",
+                 @"gitIgnore":@"no",
+                 @"gitLicense":@"no",
+                 //             @"importFrom":@"no",
+                 @"vcsType":@"git"};
+    }
 }
 
 -(NSString *)toUpdatePath{
-    return [self toProjectPath];
+    return @"api/project";
 }
 
 -(NSDictionary *)toUpdateParams{
@@ -129,7 +163,19 @@
 }
 
 -(NSString *)toDeletePath{
-    return [NSString stringWithFormat:@"api/user/%@/project/%@",self.owner_user_name, self.name];
+    if (kTarget_Enterprise) {
+        return [NSString stringWithFormat:@"api/team/%@/project/%@/delete", [Login curLoginCompany].global_key, _id];
+    }else{
+        return [NSString stringWithFormat:@"api/user/%@/project/%@",self.owner_user_name, self.name];
+    }
+}
+
+- (NSString *)toArchivePath{
+    if (kTarget_Enterprise) {
+        return [NSString stringWithFormat:@"api/team/%@/project/%@/archive", [Login curLoginCompany].global_key, self.id];
+    }else{
+        return [NSString stringWithFormat:@"api/project/%@/archive", self.id];
+    }
 }
 
 - (NSString *)toMembersPath{
@@ -167,4 +213,135 @@
 //        return @"未填写";
 //    }
 //}
+
+- (NSURL *)remoteURL{
+    NSURL *remoteURL;
+    if (kTarget_Enterprise) {
+        remoteURL = [NSURL URLWithString:[NSString stringWithFormat:@"%@%@/%@.git", [NSObject e_URLStr], self.owner_user_name, self.name]];
+    }else{
+        remoteURL = [NSURL URLWithString:[NSString stringWithFormat:@"https://git.coding.net/%@/%@.git", self.owner_user_name, self.name]];
+    }
+    return remoteURL;
+}
+- (NSURL *)localURL{
+    NSFileManager* fileManager = [NSFileManager defaultManager];
+    NSURL *appDocsDir = [fileManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].lastObject;
+    NSURL *localURL = [NSURL URLWithString:[NSString stringWithFormat:@"repositories/%@/%@", self.owner_user_name, self.name] relativeToURL:appDocsDir];
+    return localURL;
+}
+- (BOOL)isLocalRepoExist{
+    NSFileManager* fileManager = [NSFileManager defaultManager];
+    return [fileManager fileExistsAtPath:self.localURL.path];
+}
+- (BOOL)deleteLocalRepo{
+    NSFileManager* fileManager = [NSFileManager defaultManager];
+    return [fileManager removeItemAtURL:self.localURL error:nil];
+}
+- (GTRepository *)localRepo{
+    NSError *error = nil;
+    GTRepository *repo = [GTRepository repositoryWithURL:self.localURL error:&error];
+    return repo;
+}
+- (void)gitCloneBlock:(void(^)(GTRepository *repo, NSError *error))handleBlock progressBlock:(void (^)(const git_transfer_progress *progress, BOOL *stop))progressBlock{
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSError *error = nil;
+        GTCheckoutOptions *checkoutOptions = [GTCheckoutOptions checkoutOptionsWithStrategy:GTCheckoutStrategyForce];
+        NSMutableDictionary *cloneOptions = @{GTRepositoryCloneOptionsCheckoutOptions: checkoutOptions}.mutableCopy;
+        if (weakSelf.is_public && !weakSelf.is_public.boolValue) {//私有项目
+            cloneOptions[GTRepositoryCloneOptionsCredentialProvider] = [weakSelf.class p_credentialProvider];
+        }
+        GTRepository *repo = [GTRepository cloneFromURL:weakSelf.remoteURL toWorkingDirectory:weakSelf.localURL options:cloneOptions error:&error transferProgressBlock:progressBlock];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (handleBlock) {
+                handleBlock(repo, error);
+            }
+        });
+    });
+}
+- (void)gitPullBlock:(void(^)(BOOL result, NSString *tipStr))handleBlock progressBlock:(void (^)(const git_transfer_progress *progress, BOOL *stop))progressBlock{
+    if (!self.isLocalRepoExist) {
+        handleBlock(NO, @"本地仓库未找到");
+    }else{
+        GTRepository *repo = [GTRepository repositoryWithURL:self.localURL error:nil];
+        if (!repo) {
+            handleBlock(NO, @"本地仓库未找到");
+        }else{
+            GTConfiguration *configuration = [repo configurationWithError:nil];
+            GTRemote *remote = configuration.remotes.firstObject;
+            if (!remote) {
+                handleBlock(NO, @"仓库信息不完整");
+            }else{
+                __weak typeof(self) weakSelf = self;
+                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                    NSError *error = nil;
+                    NSArray<GTBranch *> *branchList = [repo localBranchesWithError:&error];
+                    if (branchList.count > 0) {
+                        GTBranch *curBranch = branchList.firstObject;
+                        NSMutableDictionary *options = @{GTRepositoryRemoteOptionsDownloadTags: @(GTRemoteDownloadTagsAuto)}.mutableCopy;
+                        if (weakSelf.is_public && !weakSelf.is_public.boolValue) {//私有项目
+                            options[GTRepositoryRemoteOptionsCredentialProvider] = [weakSelf.class p_credentialProvider];
+                        }
+                        NSError *error = nil;
+                        BOOL result = [repo pullBranch:curBranch fromRemote:remote withOptions:options error:&error progress:progressBlock];
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            if (handleBlock) {
+                                handleBlock(result, error.localizedDescription);
+                            }
+                        });
+                    }else{
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            if (handleBlock) {
+                                handleBlock(NO, @"本地分支为空，请删除后，重新 clone 代码");
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    }
+}
+
++ (GTCredentialProvider *)p_credentialProvider{
+    __block NSInteger credTimes = 0;
+    GTCredentialProvider *provider = [GTCredentialProvider providerWithBlock:^GTCredential *(GTCredentialType type, NSString *URL, NSString *credUserName) {
+        GTCredential *cred = nil;
+        if (type & GTCredentialTypeUserPassPlaintext) {
+            if (credTimes < 10) {//用户名密码错了不知道提示，居然不知道停的。。
+                NSString *userName = [Login curLoginUser].global_key ?: @"";
+                NSString *password = [Login curPassword] ?: @"";
+                cred = [GTCredential credentialWithUserName:userName password:password error:nil];
+            }else{
+                [self p_handleCredentialFailure];
+            }
+        }
+        credTimes++;
+        return cred;
+    }];
+    return provider;
+}
+
++ (void)p_handleCredentialFailure{
+    UIAlertController *alertCtrl = [UIAlertController alertControllerWithTitle:@"身份验证失败！" message:@"HTTP/S 协议需要用户的密码" preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *cancelA = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil];
+    UIAlertAction *confirmA = [UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+        NSString *textStr = alertCtrl.textFields[0].text;
+        [Login setPassword:textStr];
+        //下面这段，貌似没必要。。用户自己去再次点击也可以
+        UIViewController *vc = [BaseViewController presentingVC];
+        if ([vc isKindOfClass:[NProjectViewController class]]) {
+            [(NProjectViewController *)vc cloneRepo];
+        }else if ([vc isKindOfClass:[EALocalCodeListViewController class]]){
+            [(EALocalCodeListViewController *)vc pullRepo];
+        }
+    }];
+    [alertCtrl addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
+        textField.placeholder = @"请输入密码";
+        textField.secureTextEntry = YES;
+    }];
+    [alertCtrl addAction:cancelA];
+    [alertCtrl addAction:confirmA];
+    [[BaseViewController presentingVC] presentViewController:alertCtrl animated:YES completion:nil];
+}
+
 @end

@@ -28,6 +28,11 @@ typedef NS_ENUM(NSInteger, IllegalContentType) {
 + (id)sharedJsonClient;
 + (id)changeJsonClient;
 
++ (id)changeSharedJsonClient;
++ (id)e_JsonClient;
++ (id)changeE_JsonClient;
+
+
 - (void)requestJsonDataWithPath:(NSString *)aPath
                      withParams:(NSDictionary*)params
                  withMethodType:(NetworkMethod)method
@@ -53,6 +58,14 @@ typedef NS_ENUM(NSInteger, IllegalContentType) {
        successBlock:(void (^)(AFHTTPRequestOperation *operation, id responseObject))success
        failureBlock:(void (^)(AFHTTPRequestOperation *operation, NSError *error))failure
       progerssBlock:(void (^)(CGFloat progressValue))progress;
+
+- (void)uploadAssets:(NSArray *)assets
+                path:(NSString *)path
+                name:(NSString *)name
+              params:(NSDictionary *)params
+        successBlock:(void (^)(AFHTTPRequestOperation *operation, id responseObject))success
+        failureBlock:(void (^)(AFHTTPRequestOperation *operation, NSError *error))failure
+       progerssBlock:(void (^)(CGFloat progressValue))progress;
 
 - (void)uploadVoice:(NSString *)file
            withPath:(NSString *)path

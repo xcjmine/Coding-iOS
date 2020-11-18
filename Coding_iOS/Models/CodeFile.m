@@ -16,7 +16,7 @@
     codeFile.path = path;
     return codeFile;
 }
-+ (CodeFile *)codeFileWithMDStr:(NSString *)md_html{
++ (CodeFile *)codeFileWithMDPreview:(NSString *)md_html{
     CodeFile *codeFile = [self codeFileWithRef:@"" andPath:@"README"];
     
     CodeFile_RealFile *file = [CodeFile_RealFile new];
@@ -27,6 +27,26 @@
     codeFile.file = file;
     return codeFile;
 }
++ (CodeFile *)codeFileToCommitWithRef:(NSString *)ref andPath:(NSString *)path name:(NSString *)name data:(NSString *)data message:(NSString *)message headCommit:(Commit *)headCommit{
+    CodeFile *codeFile = [self codeFileWithRef:ref andPath:path];
+    codeFile.editName = name;
+    codeFile.editData = data;
+    codeFile.editMessage = message;
+    codeFile.headCommit = headCommit;
+    return codeFile;
+}
+
++ (CodeFile *)codeFileWithLocalURL:(NSURL *)localURL{
+    CodeFile *codeFile = [self new];
+    CodeFile_RealFile *file = [CodeFile_RealFile new];
+    file.mode = @"file";
+    NSStringEncoding enc;
+    file.data = [NSString stringWithContentsOfURL:localURL usedEncoding:&enc error:nil];
+    file.lang = localURL.ea_lang ?: @"";
+    codeFile.file = file;
+    return codeFile;
+}
+
 - (NSString *)path{
     if (!_path) {
         _path = @"";
@@ -45,6 +65,12 @@
     }
     return _editData;
 }
+- (NSString *)editName{
+    if (!_editName) {
+        _editName = _file.name.copy;
+    }
+    return _editName;
+}
 - (NSString *)editMessage{
     if (!_editMessage) {
         _editMessage = [NSString stringWithFormat:@"update %@", _path];
@@ -58,9 +84,29 @@
     params[@"lastCommitSha"] = self.headCommit.commitId;
     return params;
 }
+
+- (NSDictionary *)toDeleteParams{
+    NSMutableDictionary *params = @{}.mutableCopy;
+    params[@"message"] = [NSString stringWithFormat:@"delete: %@", self.file.name];
+    params[@"lastCommitSha"] = self.headCommit.commitId;
+    return params;
+}
+
+- (NSDictionary *)toCreateParams{
+    NSMutableDictionary *params = @{}.mutableCopy;
+    params[@"title"] = self.editName;
+    params[@"content"] = self.editData ?: @"";
+    params[@"message"] = self.editMessage;
+    params[@"lastCommitSha"] = self.headCommit.commitId ?: @"";
+    return params;
+}
 @end
 
 
 @implementation CodeFile_RealFile
+
+- (void)setPreview:(NSString *)preview{
+    _preview = [preview stringByReplacingOccurrencesOfString:@"{{CodingUrl}}" withString:@""];
+}
 
 @end

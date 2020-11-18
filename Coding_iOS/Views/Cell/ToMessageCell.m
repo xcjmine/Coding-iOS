@@ -15,9 +15,8 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
-        self.backgroundColor = [UIColor clearColor];
         self.textLabel.font = [UIFont systemFontOfSize:17];
-        self.textLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+        self.textLabel.textColor = kColorDark3;
     }
     return self;
 }
@@ -37,6 +36,18 @@
         case ToMessageTypeSystemNotification:
             imageName = @"messageSystem";
             titleStr = @"系统通知";
+            break;
+        case ToMessageTypeAllNotification:
+            imageName = @"messageSystem";
+            titleStr = @"通知";
+            break;
+        case ToMessageTypeProjectFollows:
+            imageName = @"messageProjectFollows";
+            titleStr = @"我的关注";
+            break;
+        case ToMessageTypeProjectFans:
+            imageName = @"messageProjectFans";
+            titleStr = @"我的粉丝";
             break;
         default:
             break;

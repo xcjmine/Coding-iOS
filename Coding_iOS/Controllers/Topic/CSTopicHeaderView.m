@@ -30,7 +30,7 @@
         self.clipsToBounds = YES;
         
         UIView *sepLine = [[UIView alloc] initWithFrame:CGRectMake(12, 41, kScreen_Width - 12, 0.5)];
-        sepLine.backgroundColor = [UIColor colorWithHexString:@"0xdddddd"];
+        sepLine.backgroundColor = kColorDDD;
         [self addSubview:sepLine];
         
         _userCountLabel = ({
@@ -47,7 +47,7 @@
         label2.right = kScreen_Width - 25;
         label2.font = [UIFont systemFontOfSize:13];
         label2.backgroundColor = [UIColor clearColor];
-        label2.textColor = [UIColor colorWithHexString:@"0x999999"];
+        label2.textColor = kColor999;
         label2.textAlignment = NSTextAlignmentRight;
         label2.text = @"查看全部";
         [self addSubview:label2];
@@ -84,7 +84,7 @@
         
         for (int i=0; i<userlist.count; i++) {
             User *user = userlist[i];
-            UIImageView *iconView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 57, 42, 42)];
+            UIImageView *iconView = [[YLImageView alloc] initWithFrame:CGRectMake(0, 57, 42, 42)];
             [iconView doCircleFrame];
             iconView.left = 16 + i *(9 + 42);
             if (iconView.right > kScreen_Width) {
@@ -94,6 +94,15 @@
             [self addSubview:iconView];
             
             [iconView sd_setImageWithURL:[user.avatar urlImageWithCodePathResizeToView:iconView] placeholderImage:[UIImage imageNamed:@"placeholder_monkey_round_48"]];
+            
+            {
+                UIImageView *vipV = [UIImageView new];
+                [self addSubview:vipV];
+                [vipV mas_makeConstraints:^(MASConstraintMaker *make) {
+                    make.right.bottom.equalTo(iconView);
+                }];
+                vipV.image = [UIImage imageNamed:[NSString stringWithFormat:@"vip_%@_40", user.vip]];
+            }
             
             [_avatalist addObject:iconView];
         }

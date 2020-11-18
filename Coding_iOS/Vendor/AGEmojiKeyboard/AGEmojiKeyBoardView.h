@@ -12,6 +12,7 @@
 
 typedef NS_ENUM(NSInteger, AGEmojiKeyboardViewCategoryImage) {
     AGEmojiKeyboardViewCategoryImageEmoji,
+    AGEmojiKeyboardViewCategoryImageEmoji_Code,
     AGEmojiKeyboardViewCategoryImageMonkey,
     AGEmojiKeyboardViewCategoryImageMonkey_Gif,
 };

@@ -29,31 +29,30 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
-        self.backgroundColor = [UIColor clearColor];
         if (!_iconView) {
             _iconView = [[YLImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, ([FileVersionCell cellHeight] - kFileVersionCell_IconWidth)/2, kFileVersionCell_IconWidth, kFileVersionCell_IconWidth)];
             _iconView.layer.masksToBounds = YES;
             _iconView.layer.cornerRadius = 2.0;
             _iconView.layer.borderWidth = 0.5;
-            _iconView.layer.borderColor = [UIColor colorWithHexString:@"0xdddddd"].CGColor;
+            _iconView.layer.borderColor = kColorDDD.CGColor;
             _iconView.contentMode = UIViewContentModeScaleAspectFill;
             [self.contentView addSubview:_iconView];
         }
         if (!_nameLabel) {
             _nameLabel = [[UILabel alloc] initWithFrame:CGRectMake(kFileVersionCell_LeftPading, kFileVersionCell_TopPading, (kScreen_Width - kFileVersionCell_LeftPading - 60), 25)];
-            _nameLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _nameLabel.textColor = kColor222;
             _nameLabel.font = [UIFont systemFontOfSize:16];
             [self.contentView addSubview:_nameLabel];
         }
         if (!_sizeLabel) {
             _sizeLabel = [[UILabel alloc] initWithFrame:CGRectMake(kFileVersionCell_LeftPading, ([FileVersionCell cellHeight]- 15)/2+3, (kScreen_Width - kFileVersionCell_LeftPading - 60), 15)];
-            _sizeLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _sizeLabel.textColor = kColor999;
             _sizeLabel.font = [UIFont systemFontOfSize:12];
             [self.contentView addSubview:_sizeLabel];
         }
         if (!_infoLabel) {
             _infoLabel = [[UILabel alloc] initWithFrame:CGRectMake(kFileVersionCell_LeftPading, ([FileVersionCell cellHeight]- 15 - kFileVersionCell_TopPading), (kScreen_Width - kFileVersionCell_LeftPading - 60), 15)];
-            _infoLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _infoLabel.textColor = kColor999;
             _infoLabel.font = [UIFont systemFontOfSize:12];
             [self.contentView addSubview:_infoLabel];
         }
@@ -64,12 +63,15 @@
             _progressView.delegate = self;
             _progressView.font = [UIFont fontWithName:@"Futura-CondensedExtraBold" size:12];
             [_progressView setTrackTintColor:[UIColor colorWithHexString:@"0xe6e6e6"]];
-            _progressView.popUpViewAnimatedColors = @[[UIColor colorWithHexString:@"0x3bbd79"]];
+            _progressView.popUpViewAnimatedColors = @[kColorBrandBlue];
             _progressView.hidden = YES;
             [self.contentView addSubview:self.progressView];
         }
         if (!_stateButton) {
-            _stateButton = [[UIButton alloc] initWithFrame:CGRectMake((kScreen_Width - 55), ([FileVersionCell cellHeight] - 25)/2, 45, 25)];
+            _stateButton = [[UIButton alloc] initWithFrame:CGRectMake((kScreen_Width - 60), ([FileVersionCell cellHeight] - 30)/2, 50, 30)];
+            [_stateButton doBorderWidth:1.0 color:kColorD8DDE4 cornerRadius:3];
+            _stateButton.titleLabel.font = [UIFont systemFontOfSize:14];
+            [_stateButton setTitleColor:kColorDark7 forState:UIControlStateNormal];
             [_stateButton addTarget:self action:@selector(clickedByUser) forControlEvents:UIControlEventTouchUpInside];
             [self.contentView addSubview:_stateButton];
         }
@@ -139,33 +141,38 @@
 }
 
 - (void)changeToState:(DownloadState)state{
-    NSString *stateImageName;
+    NSString *stateTitleStr;
     switch (state) {
         case DownloadStateDefault:
-            stateImageName = @"icon_file_state_download";
+            stateTitleStr = @"下载";
             break;
         case DownloadStateDownloading:
-            stateImageName = @"icon_file_state_pause";
+            stateTitleStr = @"暂停";
             break;
         case DownloadStatePausing:
-            stateImageName = @"icon_file_state_goon";
+            stateTitleStr = @"继续";
             break;
         case DownloadStateDownloaded:
-            stateImageName = @"icon_file_state_look";
+            stateTitleStr = @"查看";
             break;
         default:
-            stateImageName = @"icon_file_state_download";
+            stateTitleStr = @"下载";
             break;
     }
-    [self setBackgroundColor:(state == DownloadStateDownloaded)? [UIColor colorWithHexString:@"0xf1fcf6"]:[UIColor clearColor]];
+    [self setBackgroundColor:(state == DownloadStateDownloaded)? [UIColor colorWithHexString:@"0x81BCFF" andAlpha:.1]:[UIColor whiteColor]];
+    //addLineforPlainCell: 重置了 backgroundView，要改 layer 才行
+    CALayer *bgLayer = self.backgroundView.layer.sublayers.firstObject;
+    if (bgLayer && [bgLayer isKindOfClass:[CAShapeLayer class]]) {
+        ((CAShapeLayer *)bgLayer).fillColor = self.backgroundColor.CGColor;
+    }
     [self.progressView setHidden:!(state == DownloadStateDownloading || state == DownloadStatePausing)];
     
-    [_stateButton setImage:[UIImage imageNamed:stateImageName] forState:UIControlStateNormal];
+    [_stateButton setTitle:stateTitleStr forState:UIControlStateNormal];
 }
 
 - (void)clickedByUser{
     Coding_FileManager *manager = [Coding_FileManager sharedManager];
-    NSURL *fileUrl = [Coding_FileManager diskDownloadUrlForKey:_curVersion.storage_key];
+    NSURL *fileUrl = _curVersion.diskFileUrl;
     if (fileUrl) {//已经下载到本地了
         if (_showDiskFileBlock) {
             _showDiskFileBlock(fileUrl, _curVersion);

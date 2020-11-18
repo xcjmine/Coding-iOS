@@ -14,7 +14,6 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
-        self.tintColor = [UIColor colorWithHexString:@"0x3bbd79"];
         if (!_colorView) {
             _colorView = [[UIView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, 12, 20, 20)];
             _colorView.layer.masksToBounds = YES;
@@ -23,7 +22,7 @@
         }
         if (!_colorL) {
             _colorL = [[UILabel alloc] initWithFrame:CGRectMake(CGRectGetMaxX(_colorView.frame) + 10, 0, 100, 44)];
-            _colorL.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _colorL.textColor = kColor222;
             _colorL.font = [UIFont systemFontOfSize:16];
             [self.contentView addSubview:_colorL];
         }

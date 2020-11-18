@@ -62,6 +62,9 @@
         if (![_contentDisplay hasSuffix:@"\n"] && _contentDisplay.length > 0) {
             [_contentDisplay appendString:@"\n"];
         }
+    }else if ([element.attributes[@"class"] isEqualToString:@"kdmath"]) {
+        item = [HtmlMediaItem htmlMediaItemWithType:HtmlMediaItemType_Math];
+        item.code = [element.text trimWhitespace];
     }else if ([element.tagName isEqualToString:@"code"]) {
         item = [HtmlMediaItem htmlMediaItemWithType:HtmlMediaItemType_Code];
         item.code = [element.text trimWhitespace];
@@ -180,7 +183,14 @@
         [_mediaItems removeObject:delItem];
     }
 }
-
+- (BOOL)needToShowDetail{
+    for (HtmlMediaItem *item in _mediaItems) {
+        if (item.type == HtmlMediaItemType_Code || item.type == HtmlMediaItemType_Math) {
+            return YES;
+        }
+    }
+    return NO;
+}
 + (instancetype)htmlMediaWithString:(NSString *)htmlString showType:(MediaShowType)showType{
     return [[[self class] alloc] initWithString:htmlString showType:showType];
 }
@@ -248,6 +258,9 @@
         case HtmlMediaItemType_AutoLink:
         case HtmlMediaItemType_CustomLink:
             displayStr = [_linkStr stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            break;
+        case HtmlMediaItemType_Math:
+            displayStr = @"[math]";
             break;
         default:
             displayStr = @"";

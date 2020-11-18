@@ -29,7 +29,7 @@
         // Initialization code
         self.items = @[@{@"all":@""},@{@"created":@""},@{@"joined":@""},@{@"watched":@""},@{@"stared":@""}].mutableCopy;
         self.pCount=[ProjectCount new];
-        self.showStatus=FALSE;
+        self.showStatus= NO;
         [self setup];
     }
     return self;
@@ -56,6 +56,7 @@
     self.backgroundColor = [UIColor clearColor];
     
     _realTimeBlur = [[XHRealTimeBlur alloc] initWithFrame:self.bounds];
+    _realTimeBlur.clipsToBounds = YES;
     _realTimeBlur.blurStyle = XHBlurStyleTranslucentWhite;
     _realTimeBlur.showDuration = 0.1;
     _realTimeBlur.disMissDuration = 0.2;
@@ -92,6 +93,9 @@
         [tableview registerClass:[UITableViewCell class] forCellReuseIdentifier:@"UITableViewCell"];
         tableview.tableFooterView=[UIView new];
         tableview.separatorStyle=UITableViewCellSeparatorStyleNone;
+        tableview.estimatedRowHeight = 0;
+        tableview.estimatedSectionHeaderHeight = 0;
+        tableview.estimatedSectionFooterHeight = 0;
         tableview;
     });
     [self addSubview:_tableview];
@@ -110,7 +114,7 @@
 
 #pragma mark -- event & action
 - (void)showMenuAtView:(UIView *)containerView {
-    _showStatus=TRUE;
+    _showStatus= YES;
     [containerView addSubview:self];
     [_realTimeBlur showBlurViewAtView:self];
     [_tableview reloadData];
@@ -122,9 +126,8 @@
     if ([[presentView.subviews firstObject] isMemberOfClass:NSClassFromString(@"RDVTabBar")]) {
         [presentView bringSubviewToFront:[presentView.subviews firstObject]];
     }
-    _showStatus=FALSE;
+    _showStatus= NO;
     [_realTimeBlur disMiss];
-//    [self removeFromSuperview];
 }
 
 //组装cell标题
@@ -158,38 +161,11 @@
     _items = @[@{@"all":[pCount.all stringValue]},@{@"created":[pCount.created stringValue]},@{@"joined":[pCount.joined  stringValue]},@{@"watched":[pCount.watched stringValue]},@{@"stared":[pCount.stared stringValue]}].mutableCopy;
 }
 
-
-//转化为Projects类对应类型
--(NSInteger)convertToProjectType
-{
-    switch (_selectNum) {
-        case 0:
-            return ProjectsTypeAll;
-            break;
-        case 1:
-            return ProjectsTypeCreated;
-            break;
-        case 2:
-            return ProjectsTypeJoined;
-            break;
-        case 3:
-            return ProjectsTypeWatched;
-            break;
-        case 4:
-            return ProjectsTypeStared;
-            break;
-        default:
-            NSLog(@"type error");
-            return ProjectsTypeAll;
-            break;
-    }
-}
-
-
 #pragma mark -- uitableviewdelegate & datasource
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
 {
-    return 3;
+    return 1;
+//    return 3;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
@@ -217,17 +193,17 @@
     titleLab.font=[UIFont systemFontOfSize:15];
     [cell.contentView addSubview:titleLab];
     if (indexPath.section==0) {
-        titleLab.textColor=(indexPath.row==_selectNum)?[UIColor colorWithHexString:@"0x3BBD79"]:[UIColor colorWithHexString:@"0x222222"];
+        titleLab.textColor=(indexPath.row==_selectNum)?kColorBrandBlue:kColor222;
         titleLab.text=[self formatTitleStr:[_items objectAtIndex:indexPath.row]];
     }else if (indexPath.section==1) {
         if(indexPath.row==0){
             [titleLab removeFromSuperview];
             UIView *seperatorLine=[[UIView alloc] initWithFrame:CGRectMake(20, 15, self.bounds.size.width-40, 0.5)];
-            seperatorLine.backgroundColor=[UIColor colorWithHexString:@"0xcccccc"];
+            seperatorLine.backgroundColor=kColorCCC;
             [cell.contentView addSubview:seperatorLine];
             cell.selectionStyle=UITableViewCellSelectionStyleNone;
         }else{
-            titleLab.textColor=(indexPath.row+kfirstRowNum==_selectNum)?[UIColor colorWithHexString:@"0x3BBD79"]:[UIColor colorWithHexString:@"0x222222"];
+            titleLab.textColor=(indexPath.row+kfirstRowNum==_selectNum)?kColorBrandBlue:kColor222;
             titleLab.text=[self formatTitleStr:[_items objectAtIndex:3+indexPath.row-1]];
         }
     }else
@@ -235,7 +211,7 @@
         if(indexPath.row==0){
             [titleLab removeFromSuperview];
             UIView *seperatorLine=[[UIView alloc] initWithFrame:CGRectMake(20, 15, self.bounds.size.width-40, 0.5)];
-            seperatorLine.backgroundColor=[UIColor colorWithHexString:@"0xcccccc"];
+            seperatorLine.backgroundColor=kColorCCC;
             [cell.contentView addSubview:seperatorLine];
             cell.selectionStyle=UITableViewCellSelectionStyleNone;
         }else{
@@ -259,7 +235,7 @@
     if (indexPath.section==0) {
         _selectNum=indexPath.row;
         [self dismissMenu];
-        _clickBlock([self convertToProjectType]);
+        _clickBlock(self.selectNum);
     }else if (indexPath.section==1) {
         if(indexPath.row==0){
             _closeBlock();
@@ -267,7 +243,7 @@
         }
         _selectNum=indexPath.row+kfirstRowNum-1;
         [self dismissMenu];
-        _clickBlock([self convertToProjectType]);
+        _clickBlock(self.selectNum);
     }else
     {
         if(indexPath.row==0){

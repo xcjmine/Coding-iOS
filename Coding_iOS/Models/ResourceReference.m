@@ -17,6 +17,8 @@
                               @"MergeRequestBean": @"ResourceReferenceItem",
                               @"ProjectTopic": @"ResourceReferenceItem",
                               @"ProjectFile": @"ResourceReferenceItem",
+                              @"Release": @"ResourceReferenceItem",
+                              @"Wiki": @"ResourceReferenceItem",
                               };
 
     }
@@ -29,6 +31,8 @@
         [_itemList addObjectsFromArray:_ProjectTopic];
         [_itemList addObjectsFromArray:_ProjectFile];
         [_itemList addObjectsFromArray:_MergeRequestBean];
+        [_itemList addObjectsFromArray:_Release];
+        [_itemList addObjectsFromArray:_Wiki];
     }
     return _itemList;
 }

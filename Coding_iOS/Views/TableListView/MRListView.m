@@ -37,6 +37,9 @@
             UIEdgeInsets insets = UIEdgeInsetsMake(0, 0, 49, 0);//外部 segment bar 的高度
             tableView.contentInset = insets;
             tableView.scrollIndicatorInsets = insets;
+            tableView.estimatedRowHeight = 0;
+            tableView.estimatedSectionHeaderHeight = 0;
+            tableView.estimatedSectionFooterHeight = 0;
             tableView;
         });
         
@@ -90,10 +93,12 @@
 }
 
 - (void)refreshToQueryData{
-    __weak typeof(self) weakSelf = self;
-    [self configBlankPage:EaseBlankPageTypeView hasData:([self curMRPRS].list.count > 0) hasError:NO reloadButtonBlock:^(id sender) {
-        [weakSelf refreshMore:NO];
-    }];
+    if (self.curMRPRS.list > 0) {
+        __weak typeof(self) weakSelf = self;
+        [self configBlankPage:EaseBlankPageTypeView hasData:([self curMRPRS].list.count > 0) hasError:NO reloadButtonBlock:^(id sender) {
+            [weakSelf refreshMore:NO];
+        }];
+    }
     [self.myTableView reloadData];
     [self refresh];
 }
@@ -112,7 +117,7 @@
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
-    return [MRPRListCell cellHeight];
+    return [MRPRListCell cellHeightWithObj:[[self curMRPRS].list objectAtIndex:indexPath.row]];
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{

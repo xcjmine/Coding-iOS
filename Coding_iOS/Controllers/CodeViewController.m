@@ -31,10 +31,10 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     // Do any additional setup after loading the view.
+    self.view.backgroundColor = kColorTableBG;
     self.title = self.isReadMe? @"README": [[_myCodeFile.path componentsSeparatedByString:@"/"] lastObject];
     
-    {
-        //用webView显示内容
+    {//用webView显示内容
         _webContentView = [[UIWebView alloc] initWithFrame:self.view.bounds];
         _webContentView.delegate = self;
         _webContentView.backgroundColor = [UIColor clearColor];
@@ -91,36 +91,55 @@
         self.myCodeFile = data;
         [self refreshCodeViewData];
     }else{
-        self.myCodeFile = [CodeFile codeFileWithMDStr:data];
+        self.myCodeFile = [CodeFile codeFileWithMDPreview:data];
         [self refreshCodeViewData];
     }
-    [self.view configBlankPage:EaseBlankPageTypeView hasData:(data != nil) hasError:(error != nil) reloadButtonBlock:^(id sender) {
+    BOOL hasError = (error != nil && error.code != 1204);//depot_has_no_commit
+    [self.view configBlankPage:EaseBlankPageTypeCode hasData:(data != nil) hasError:hasError reloadButtonBlock:^(id sender) {
         [self sendRequest];
     }];
+    self.webContentView.hidden = hasError;
     [self configRightNavBtn];
 }
 
 - (void)refreshCodeViewData{
     if ([_myCodeFile.file.mode isEqualToString:@"image"]) {
 //        NSURL *imageUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@u/%@/p/%@/git/raw/%@", [NSObject baseURLStr], _myProject.owner_user_name, _myProject.name, [NSString handelRef:_myCodeFile.ref path:_myCodeFile.file.path]]];
-        NSURL *imageUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@u/%@/p/%@/git/raw/%@/%@", [NSObject baseURLStr], _myProject.owner_user_name, _myProject.name, _myCodeFile.ref, _myCodeFile.file.path]];
+        NSURL *imageUrl;
+        if (kTarget_Enterprise) {//企业版不需要 owner_user_name
+            imageUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@p/%@/git/raw/%@/%@", [NSObject baseURLStr], _myProject.name, _myCodeFile.ref, _myCodeFile.file.path]];
+        }else{
+            imageUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@u/%@/p/%@/git/raw/%@/%@", [NSObject baseURLStr], _myProject.owner_user_name, _myProject.name, _myCodeFile.ref, _myCodeFile.file.path]];
+        }
         DebugLog(@"imageUrl: %@", imageUrl);
         [self.webContentView loadRequest:[NSURLRequest requestWithURL:imageUrl]];
-    }else if ([_myCodeFile.file.mode isEqualToString:@"file"] ||
-              [_myCodeFile.file.mode isEqualToString:@"sym_link"]){
+    }else if ([@[@"file", @"sym_link", @"executable"] containsObject:_myCodeFile.file.mode]){
         NSString *contentStr = [WebContentManager codePatternedWithContent:_myCodeFile isEdit:NO];
-        [self.webContentView loadHTMLString:contentStr baseURL:nil];
+        [self.webContentView loadHTMLString:contentStr baseURL:[NSURL URLWithString:[self p_baseHref]]];
     }
+}
+
+- (NSString *)p_baseHref{//写在 html 文件里的，没有 baseHref 的话，锚点会异常
+    return @"https://coding.net/";
 }
 
 #pragma mark UIWebViewDelegate
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType{
     DebugLog(@"strLink=[%@]",request.URL.absoluteString);
     if ([_myCodeFile.file.mode isEqualToString:@"image"]) {
-        NSString *imageStr = [NSString stringWithFormat:@"%@u/%@/p/%@/git/raw/%@/%@", [NSObject baseURLStr], _myProject.owner_user_name, _myProject.name, _myCodeFile.ref, _myCodeFile.file.path];
+        NSString *imageStr;
+        if (kTarget_Enterprise) {
+            imageStr = [NSString stringWithFormat:@"%@p/%@/git/raw/%@/%@", [NSObject baseURLStr], _myProject.name, _myCodeFile.ref, _myCodeFile.file.path];
+        }else{
+            imageStr = [NSString stringWithFormat:@"%@u/%@/p/%@/git/raw/%@/%@", [NSObject baseURLStr], _myProject.owner_user_name, _myProject.name, _myCodeFile.ref, _myCodeFile.file.path];
+        }
         if ([imageStr isEqualToString:request.URL.absoluteString]) {
             return YES;
         }
+    }
+    if ([request.URL.absoluteString isEqualToString:[self p_baseHref]] ||
+        [request.URL.absoluteString hasPrefix:[[self p_baseHref] stringByAppendingString:@"#"]]) {
+        return YES;
     }
     UIViewController *vc = [BaseViewController analyseVCFromLinkStr:request.URL.absoluteString];
     if (vc) {
@@ -147,7 +166,11 @@
 - (void)configRightNavBtn{
     if (!self.navigationItem.rightBarButtonItem) {
         if (_isReadMe) {
-            [self.navigationItem setRightBarButtonItem:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"tweetBtn_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(goToEditVC)] animated:NO];
+            if (self.myCodeFile.can_edit) {
+                [self.navigationItem setRightBarButtonItem:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"tweetBtn_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(goToEditVC)] animated:NO];
+            }else{
+                [self.navigationItem setRightBarButtonItem:nil animated:NO];
+            }
         }else{
             [self.navigationItem setRightBarButtonItem:[[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"moreBtn_Nav"] style:UIBarButtonItemStylePlain target:self action:@selector(rightNavBtnClicked)] animated:NO];
         }
@@ -156,17 +179,17 @@
 
 - (void)rightNavBtnClicked{
     NSMutableArray *actionTitles = @[@"编辑代码", @"查看提交记录", @"退出代码查看"].mutableCopy;
-    if (!self.myCodeFile.can_edit) {
+    if (!self.myCodeFile.can_edit || [self.myCodeFile.file.mode isEqualToString:@"image"]) {
         [actionTitles removeObjectAtIndex:0];
     }
     __weak typeof(self) weakSelf = self;
-    [[UIActionSheet bk_actionSheetCustomWithTitle:nil buttonTitles:actionTitles destructiveTitle:nil cancelTitle:@"取消" andDidDismissBlock:^(UIActionSheet *sheet, NSInteger index) {
-        [weakSelf actionSheetClicked:sheet index:index];
+    [[UIAlertController ea_actionSheetCustomWithTitle:nil buttonTitles:actionTitles destructiveTitle:self.myCodeFile.can_edit? @"删除文件": nil cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
+        [weakSelf actionSheetClickedIndex:index];
     }] showInView:self.view];
 }
 
-- (void)actionSheetClicked:(UIActionSheet *)sheet index:(NSInteger)index{
-    if (!self.myCodeFile.can_edit) {
+- (void)actionSheetClickedIndex:(NSInteger)index{
+    if (!self.myCodeFile.can_edit || [self.myCodeFile.file.mode isEqualToString:@"image"]) {
         index++;
     }
     if (index == 0) {
@@ -175,7 +198,31 @@
         [self goToCommitsVC];
     }else if (index == 2){
         [self popOut];
+    }else if (index == 3 && self.myCodeFile.can_edit){
+        [self deleteBtnClicked];
     }
+}
+
+- (void)deleteBtnClicked{
+    __weak typeof(self) weakSelf = self;
+    [[UIAlertController ea_actionSheetCustomWithTitle:[NSString stringWithFormat:@"确定要删除文件 %@ 吗？", _myCodeFile.file.name] buttonTitles:nil destructiveTitle:@"确认删除" cancelTitle:@"取消" andDidDismissBlock:^(UIAlertAction *action, NSInteger index) {
+        if (index == 0) {
+            [weakSelf sendDeleteRequst];
+        }
+    }] showInView:self.view];
+}
+
+- (void)sendDeleteRequst{
+    [NSObject showHUDQueryStr:@"正在删除..."];
+    [[Coding_NetAPIManager sharedManager] request_DeleteCodeFile:_myCodeFile withPro:_myProject andBlock:^(id data, NSError *error) {
+        [NSObject hideHUDQuery];
+        if (data) {
+            //            if (self.savedSucessBlock) {
+            //                self.savedSucessBlock();
+            //            }
+            [self.navigationController popViewControllerAnimated:YES];
+        }
+    }];
 }
 
 - (void)goToEditVC{

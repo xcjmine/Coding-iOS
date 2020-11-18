@@ -25,20 +25,20 @@
         // Initialization code
         self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         if (!_iconView) {
-            _iconView = [[UIImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, 8, 28, 28)];
+            _iconView = [[YLImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, ([LeftImage_LRTextCell cellHeight] - 33) / 2, 33, 33)];
             [self.contentView addSubview:_iconView];
         }
         if (!_leftLabel) {
-            _leftLabel = [[UILabel alloc] initWithFrame:CGRectMake(60, 7, 80, 30)];
-            _leftLabel.font = [UIFont systemFontOfSize:16];
-            _leftLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _leftLabel = [[UILabel alloc] initWithFrame:CGRectMake(60,  ([LeftImage_LRTextCell cellHeight] - 30) / 2, 80, 30)];
+            _leftLabel.font = [UIFont systemFontOfSize:15];
+            _leftLabel.textColor = kColorDark3;
             _leftLabel.textAlignment = NSTextAlignmentLeft;
             [self.contentView addSubview:_leftLabel];
         }
         if (!_rightLabel) {
-            _rightLabel = [[UILabel alloc] initWithFrame:CGRectMake(CGRectGetMaxX(_leftLabel.frame), 7, kScreen_Width - CGRectGetMaxX(_leftLabel.frame) - 35, 30)];
-            _rightLabel.font = [UIFont systemFontOfSize:18];
-            _rightLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _rightLabel = [[UILabel alloc] initWithFrame:CGRectMake(CGRectGetMaxX(_leftLabel.frame),  ([LeftImage_LRTextCell cellHeight] - 30) / 2, kScreen_Width - CGRectGetMaxX(_leftLabel.frame) - 35, 30)];
+            _rightLabel.font = [UIFont systemFontOfSize:15];
+            _rightLabel.textColor = kColorDark7;
             _rightLabel.textAlignment = NSTextAlignmentRight;
             [self.contentView addSubview:_rightLabel];
         }
@@ -78,6 +78,18 @@
                 _leftLabel.text = @"执行者";
                 if (task.owner) {
                     _rightLabel.text = task.owner.name;
+                }else{
+                    _rightLabel.text = @"未指定";
+                }
+            }
+                break;
+            case LeftImage_LRTextCellTypeTaskBoardList:
+            {
+                [_iconView doNotCircleFrame];
+                [_iconView setImage:[UIImage imageNamed:@"taskBoardList"]];
+                _leftLabel.text = @"看板列表";
+                if (task.task_board_list) {
+                    _rightLabel.text = task.task_board_list.title;
                 }else{
                     _rightLabel.text = @"未指定";
                 }
@@ -139,11 +151,17 @@
             default:
                 break;
         }
+        if ((_type == LeftImage_LRTextCellTypeTaskProject && task.project.icon.length > 0) ||
+            (_type == LeftImage_LRTextCellTypeTaskOwner && task.owner.avatar.length > 0)) {
+            _iconView.contentMode = UIViewContentModeScaleAspectFill;
+        }else{
+            _iconView.contentMode = UIViewContentModeCenter;
+        }
     }
 }
 
 
 + (CGFloat)cellHeight{
-    return 44;
+    return 50;
 }
 @end

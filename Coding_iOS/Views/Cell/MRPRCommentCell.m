@@ -12,11 +12,13 @@
 #import "UICustomCollectionView.h"
 #import "MRPRCommentCCell.h"
 #import "MJPhotoBrowser.h"
+#import "HtmlMediaViewController.h"
 
 @interface MRPRCommentCell ()<UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout>
 @property (strong, nonatomic) UIImageView *ownerIconView;
 @property (strong, nonatomic) UILabel *timeLabel;
 @property (strong, nonatomic) UICustomCollectionView *imageCollectionView;
+@property (strong, nonatomic) UIButton *detailBtn;
 
 @end
 
@@ -29,14 +31,14 @@
         self.backgroundColor = kColorTableBG;
         CGFloat curBottomY = 10;
         if (!_ownerIconView) {
-            _ownerIconView = [[UIImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, curBottomY, 33, 33)];
+            _ownerIconView = [[YLImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, curBottomY, 33, 33)];
             [_ownerIconView doCircleFrame];
             [self.contentView addSubview:_ownerIconView];
         }
         CGFloat curWidth = kScreen_Width - 40 - 2*kPaddingLeftWidth;
         if (!_contentLabel) {
             _contentLabel = [[UITTTAttributedLabel alloc] initWithFrame:CGRectMake(kPaddingLeftWidth + 40, curBottomY, curWidth, 30)];
-            _contentLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _contentLabel.textColor = kColor222;
             _contentLabel.font = kMRPRCommentCell_FontContent;
             _contentLabel.linkAttributes = kLinkAttributes;
             _contentLabel.activeLinkAttributes = kLinkAttributesActive;
@@ -45,7 +47,7 @@
         CGFloat commentBtnWidth = 40;
         if (!_timeLabel) {
             _timeLabel = [[UILabel alloc] initWithFrame:CGRectMake(kPaddingLeftWidth +40, 0, curWidth- commentBtnWidth, 20)];
-            _timeLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _timeLabel.textColor = kColor999;
             _timeLabel.font = [UIFont systemFontOfSize:12];
             [self.contentView addSubview:_timeLabel];
         }
@@ -62,9 +64,27 @@
                 [self.contentView addSubview:self.imageCollectionView];
             }
         }
+        if (!_detailBtn) {
+            _detailBtn = [UIButton buttonWithTitle:@"查看详情" titleColor:kColorBrandBlue];
+            _detailBtn.titleLabel.font = [UIFont systemFontOfSize:12];
+            [_detailBtn addTarget:self action:@selector(goToDetail) forControlEvents:UIControlEventTouchUpInside];
+            [self.contentView addSubview:_detailBtn];
+            [_detailBtn mas_makeConstraints:^(MASConstraintMaker *make) {
+                make.size.mas_equalTo(CGSizeMake(60, 30));
+                make.right.equalTo(self.contentView).offset(-10);
+                make.centerY.equalTo(_timeLabel);
+            }];
+        }
+        _timeLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
     }
     return self;
 }
+
+- (void)goToDetail{
+    HtmlMediaViewController *vc = [HtmlMediaViewController instanceWithHtmlMedia:self.curItem.htmlMedia title:[NSString stringWithFormat:@"%@ 的评论", self.curItem.author.name]];
+    [BaseViewController goToVC:vc];
+}
+
 
 - (void)setCurItem:(ProjectLineNote *)curItem{
     _curItem = curItem;
@@ -72,13 +92,14 @@
     if (!_curItem) {
         return;
     }
+    _detailBtn.hidden = ![self.curItem.htmlMedia needToShowDetail];
     CGFloat curBottomY = 10;
     CGFloat curWidth = kScreen_Width - 40 - 2*kPaddingLeftWidth;
     [_ownerIconView sd_setImageWithURL:[_curItem.author.avatar urlImageWithCodePathResizeToView:_ownerIconView] placeholderImage:kPlaceholderMonkeyRoundView(_ownerIconView)];
     [_contentLabel setLongString:_curItem.content withFitWidth:curWidth];
     
     for (HtmlMediaItem *item in _curItem.htmlMedia.mediaItems) {
-        if (item.displayStr.length > 0 && !(item.type == HtmlMediaItemType_Code ||item.type == HtmlMediaItemType_EmotionEmoji)) {
+        if (item.displayStr.length > 0 && item.href.length > 0) {
             [_contentLabel addLinkToTransitInformation:[NSDictionary dictionaryWithObject:item forKey:@"value"] withRange:item.range];
         }
     }
@@ -97,6 +118,7 @@
     curBottomY += [MRPRCommentCell imageCollectionViewHeightWithCount:imagesCount];
     
     [_timeLabel setY:curBottomY];
+    _timeLabel.width = _detailBtn.hidden? kScreen_Width - 40 - 2*kPaddingLeftWidth: kScreen_Width - 40 - 2*kPaddingLeftWidth - 60;
     _timeLabel.text = [NSString stringWithFormat:@"%@ %@", _curItem.author.name, [_curItem.created_at stringDisplay_HHmm]];
 }
 

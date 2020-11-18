@@ -7,9 +7,9 @@
 //
 
 #define kProjectActivityListCell_IconHeight 33.0
-#define kProjectActivityListCell_TimeIconWidth 13.0
+#define kProjectActivityListCell_TimeIconWidth 7.0
 #define kProjectActivityListCell_TimeLineWidth 2.0
-#define kProjectActivityListCell_LeftPading 85
+#define kProjectActivityListCell_LeftPading 75
 #define kProjectActivityListCell_RightPading kPaddingLeftWidth
 #define kProjectActivityListCell_UpDownPading kScaleFrom_iPhone5_Desgin(10)
 #define kProjectActivityListCell_TextPading 5.0
@@ -47,17 +47,12 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
-        self.backgroundColor = [UIColor clearColor];
         if (!_userIconView) {
-            _userIconView = [[UITapImageView alloc] initWithFrame:CGRectMake(kPaddingLeftWidth, kProjectActivityListCell_UpDownPading, kProjectActivityListCell_IconHeight, kProjectActivityListCell_IconHeight)];
+            _userIconView = [[UITapImageView alloc] initWithFrame:CGRectMake(32, kProjectActivityListCell_UpDownPading, kProjectActivityListCell_IconHeight, kProjectActivityListCell_IconHeight)];
             [_userIconView doCircleFrame];
             [self.contentView addSubview:_userIconView];
         }
-        CGFloat imgRightX = CGRectGetMaxX(_userIconView.frame);
-        CGFloat timeLineCenterX = imgRightX + (kProjectActivityListCell_LeftPading-imgRightX)/2;
-        
-        ;
-                                         
+        CGFloat timeLineCenterX = kPaddingLeftWidth;
         if (!_timeLineView) {
             _timeLineView = [[UIImageView alloc] initWithFrame:CGRectMake(timeLineCenterX - kProjectActivityListCell_TimeLineWidth/2, 0, kProjectActivityListCell_TimeLineWidth, 1)];
             //        _timeLineView.contentMode = UIViewContentModeScaleToFill;
@@ -70,7 +65,7 @@
         if (!_actionLabel) {
             _actionLabel = [[UITTTAttributedLabel alloc] initWithFrame:CGRectMake(kProjectActivityListCell_LeftPading, kProjectActivityListCell_UpDownPading, kProjectActivityListCell_ContentWidth, 20)];
             _actionLabel.backgroundColor = [UIColor clearColor];
-            _actionLabel.textColor = [UIColor colorWithHexString:@"0x222222"];
+            _actionLabel.textColor = kColor222;
             _actionLabel.font = kProjectActivityListCell_ActionFont;
             _actionLabel.linkAttributes = kLinkAttributes;
             _actionLabel.activeLinkAttributes = kLinkAttributesActive;
@@ -91,7 +86,7 @@
             _timeLabel = [[UITTTAttributedLabel alloc] initWithFrame:CGRectMake(kProjectActivityListCell_LeftPading, 0, kProjectActivityListCell_ContentWidth, kProjectActivityListCell_TimeHeight)];
             _timeLabel.backgroundColor = [UIColor clearColor];
             _timeLabel.font = kProjectActivityListCell_TimeFont;
-            _timeLabel.textColor = [UIColor colorWithHexString:@"0x999999"];
+            _timeLabel.textColor = kColor999;
             [self.contentView addSubview:_timeLabel];
         }
     }
@@ -135,17 +130,17 @@
 
     [_actionLabel setLongString:_proAct.actionStr withFitWidth:kProjectActivityListCell_ContentWidth maxHeight:kProjectActivityListCell_MaxActionHeight];
     for (HtmlMediaItem *item in _proAct.actionMediaItems) {
-        if (item.displayStr.length > 0) {
+        if (item.displayStr.length > 0 && item.href.length > 0) {
             [self.actionLabel addLinkToTransitInformation:[NSDictionary dictionaryWithObject:item forKey:@"value"] withRange:item.range];
         }
     }
 
-    curBottomY += [_proAct.actionStr getHeightWithFont:kProjectActivityListCell_ActionFont constrainedToSize:CGSizeMake(kProjectActivityListCell_ContentWidth, kProjectActivityListCell_MaxActionHeight)];
+    curBottomY += [_proAct.actionStr getHeightWithFont:kProjectActivityListCell_ActionFont constrainedToSize:CGSizeMake(kProjectActivityListCell_ContentWidth - 5, kProjectActivityListCell_MaxActionHeight)];
     curBottomY += kProjectActivityListCell_TextPading;
 //    内容
     [_contentLabel setLongString:_proAct.contentStr withFitWidth:kProjectActivityListCell_ContentWidth maxHeight:kProjectActivityListCell_MaxContentHeight];
     [_contentLabel setY:curBottomY];
-    curBottomY += [_proAct.contentStr getHeightWithFont:kProjectActivityListCell_ContentFont constrainedToSize:CGSizeMake(kProjectActivityListCell_ContentWidth, kProjectActivityListCell_MaxContentHeight)];
+    curBottomY += [_proAct.contentStr getHeightWithFont:kProjectActivityListCell_ContentFont constrainedToSize:CGSizeMake(kProjectActivityListCell_ContentWidth - 5, kProjectActivityListCell_MaxContentHeight)];
     curBottomY += kProjectActivityListCell_TextPading;
 //    时间
     curBottomY +=5;
@@ -161,9 +156,9 @@
     ProjectActivity *proAct = (ProjectActivity *)obj;
     CGFloat cellHeight = 0;
     cellHeight += kProjectActivityListCell_UpDownPading *2;
-    cellHeight += MIN(kProjectActivityListCell_MaxActionHeight, [proAct.actionStr getHeightWithFont:kProjectActivityListCell_ActionFont constrainedToSize:CGSizeMake(kProjectActivityListCell_ContentWidth, kProjectActivityListCell_MaxActionHeight)]);
+    cellHeight += MIN(kProjectActivityListCell_MaxActionHeight, [proAct.actionStr getHeightWithFont:kProjectActivityListCell_ActionFont constrainedToSize:CGSizeMake(kProjectActivityListCell_ContentWidth - 5, kProjectActivityListCell_MaxActionHeight)]);
     cellHeight += kProjectActivityListCell_TextPading*2;
-    cellHeight += MIN(kProjectActivityListCell_MaxContentHeight, [proAct.contentStr getHeightWithFont:kProjectActivityListCell_ContentFont constrainedToSize:CGSizeMake(kProjectActivityListCell_ContentWidth, kProjectActivityListCell_MaxContentHeight)]);
+    cellHeight += MIN(kProjectActivityListCell_MaxContentHeight, [proAct.contentStr getHeightWithFont:kProjectActivityListCell_ContentFont constrainedToSize:CGSizeMake(kProjectActivityListCell_ContentWidth - 5, kProjectActivityListCell_MaxContentHeight)]);
     cellHeight += 5+ kProjectActivityListCell_TimeHeight;
     
     return cellHeight;

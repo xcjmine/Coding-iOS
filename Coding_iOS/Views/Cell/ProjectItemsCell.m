@@ -23,7 +23,6 @@
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (self) {
         // Initialization code
-        self.backgroundColor = [UIColor clearColor];
         self.selectionStyle = UITableViewCellSelectionStyleNone;
         
         NSInteger itemsNum = 0, itemsNumInLine = 1;
@@ -33,7 +32,7 @@
             itemsNumInLine = 3;
 
             itemsIconList = @[@"icon-bolt", @"icon-tasks", @"icon-comments", @"icon-folder-open", @"icon-code", @"icon-user"];
-            itemsColorList = @[@"0x3bbd79", @"0x25c2d5", @"0x3899d0", @"0xf8b327", @"0xee8c35", @"0xe7683d"];
+            itemsColorList = @[@"0x0060FF", @"0x25c2d5", @"0x3899d0", @"0xf8b327", @"0xee8c35", @"0xe7683d"];
             itemsTitleList = @[@"动态", @"任务", @"讨论", @"文件", @"代码", @"成员"];
 
         }else if ([reuseIdentifier isEqualToString:kCellIdentifier_ProjectItemsCell_Public]){
@@ -41,7 +40,7 @@
             itemsNumInLine = 4;
             
             itemsIconList = @[@"icon-bolt", @"icon-comments", @"icon-code", @"icon-user"];
-            itemsColorList = @[@"0x3bbd79", @"0x3899d0", @"0xee8c35", @"0xe7683d"];
+            itemsColorList = @[@"0x0060FF", @"0x3899d0", @"0xee8c35", @"0xe7683d"];
             itemsTitleList = @[@"动态", @"讨论", @"代码", @"成员"];
         }
         
@@ -87,8 +86,7 @@
     UIButton *item = [[UIButton alloc] initWithFrame:frame];
     
     CGFloat iconWidth = kScaleFrom_iPhone5_Desgin(46);
-    
-    UIImage *itemImg = [UIImage imageWithIcon:iconStr backgroundColor:[UIColor clearColor] iconColor:[UIColor whiteColor] iconScale:1.0 andSize:CGSizeMake(iconWidth/2.8, iconWidth/2.8)];
+    UIImage *itemImg = [UIImage imageWithIcon:iconStr backgroundColor:[UIColor clearColor] iconColor:[UIColor whiteColor] andSize:CGSizeMake(iconWidth/2.8, iconWidth/2.8)];
     UIImageView *itemImgView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, iconWidth, iconWidth)];
     itemImgView.tag = kProjectItemsCell_ItemIconTag;
     itemImgView.contentMode = UIViewContentModeCenter;
@@ -100,7 +98,7 @@
     UILabel *titleL = [[UILabel alloc] init];
     titleL.textAlignment = NSTextAlignmentCenter;
     titleL.font = [UIFont systemFontOfSize:13];
-    titleL.textColor = [UIColor colorWithHexString:@"0x222222"];
+    titleL.textColor = kColor222;
     titleL.text = titleStr;
     
 //    CGFloat pading_IconToTitle = kScaleFrom_iPhone5_Desgin(10);

@@ -16,11 +16,16 @@
 @property (readwrite, nonatomic, strong) NSString *ref, *path;
 @property (readwrite, nonatomic, strong) CodeFile_RealFile *file;
 @property (strong, nonatomic) Commit *headCommit;
-@property (strong, nonatomic) NSString *editData, *editMessage;
+@property (strong, nonatomic) NSString *editData, *editMessage, *editName;
 
 + (CodeFile *)codeFileWithRef:(NSString *)ref andPath:(NSString *)path;
-+ (CodeFile *)codeFileWithMDStr:(NSString *)md_html;
++ (CodeFile *)codeFileWithMDPreview:(NSString *)md_html;
++ (CodeFile *)codeFileToCommitWithRef:(NSString *)ref andPath:(NSString *)path name:(NSString *)name data:(NSString *)data message:(NSString *)message headCommit:(Commit *)headCommit;
++ (CodeFile *)codeFileWithLocalURL:(NSURL *)localURL;
+
 - (NSDictionary *)toEditParams;
+- (NSDictionary *)toDeleteParams;
+- (NSDictionary *)toCreateParams;
 @end
 
 
